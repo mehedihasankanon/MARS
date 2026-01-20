@@ -34,3 +34,43 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# build output
+dist/
+.turbo/
+.parcel-cache/
+
+# environment variables
+.env
+.env.local
+.env.*.local
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# database
+postgres-data/
+pgdata/
+*.sql
+
+# runtime
+*.pid
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
