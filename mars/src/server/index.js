@@ -2,9 +2,9 @@
 
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+require("dotenv").config({ path: "../../.env.local" });
 
-const pool = require("./db");
+const pool = require("../database/db.js");
 
 const app = express();
 app.use(cors());
