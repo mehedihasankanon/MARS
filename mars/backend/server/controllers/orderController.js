@@ -1,4 +1,4 @@
-const pool = require("../../database/db");
+const pool = require("../../../database/db.js");
 
 exports.getMyOrders = async (req, res) => {
   try {

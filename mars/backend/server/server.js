@@ -1,8 +1,9 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config({ path: "../../.env.local" });
+require("dotenv").config({ path: path.resolve(__dirname, "../../frontend/.env.local") });
 
-const pool = require("../database/db.js");
+const pool = require("../../database/db.js");
 
 // Route imports
 const authRoutes = require("./routes/authRoutes");
@@ -33,7 +34,7 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

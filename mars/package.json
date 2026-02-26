@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "server": "nodemon src/server/index.js",
+    "dev": "next dev frontend",
+    "build": "next build frontend",
+    "start": "next start frontend",
+    "lint": "next lint frontend",
+    "server": "nodemon backend/server/server.js",
     "dev:all": "concurrently \"npm run server\" \"npm run dev\""
   },
   "dependencies": {

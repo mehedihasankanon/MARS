@@ -1,5 +1,5 @@
 const { ca } = require("zod/v4/locales");
-const pool = require("../../database/db");
+const pool = require("../../../database/db.js");
 
 exports.getAllProducts = async (req, res) => {
   try {

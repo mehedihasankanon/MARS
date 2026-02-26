@@ -16,9 +16,12 @@
 # next.js
 /.next/
 /out/
+/frontend/.next/
+/frontend/out/
 
 # production
 /build
+/frontend/build
 
 # misc
 .DS_Store

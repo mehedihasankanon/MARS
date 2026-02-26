@@ -1,9 +1,8 @@
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const pool = require("../../database/db.js");
+const pool = require("../../../database/db.js");
 
 const { JWT_SECRET } = require("../middleware/jwt.js");
-const { Caveat } = require("next/font/google/index.js");
 
 exports.registerUser = async (req, res) => {
   const { username, email, password, firstName, lastName, phone, role } =
@@ -31,11 +30,11 @@ exports.registerUser = async (req, res) => {
     const user = userResultQuery.rows[0];
 
     if (role === "customer") {
-      await pool.query("INSERT INTO customers (user_id) VALUES ($1)", [
+      await pool.query("INSERT INTO customers (customer_id) VALUES ($1)", [
         user.user_id,
       ]);
     } else if (role === "seller") {
-      await pool.query("INSERT INTO sellers (user_id) VALUES ($1)", [
+      await pool.query("INSERT INTO sellers (seller_id) VALUES ($1)", [
         user.user_id,
       ]);
     }
@@ -81,14 +80,14 @@ exports.loginUser = async (req, res) => {
     let role = "customer";
 
     const adminCheck = await pool.query(
-      "SELECT * FROM admins WHERE user_id = $1",
+      "SELECT * FROM admins WHERE admin_id = $1",
       [user.user_id],
     );
     if (adminCheck.rows.length > 0) {
       role = "admin";
     } else {
       const sellerCheck = await pool.query(
-        "SELECT * FROM sellers WHERE user_id = $1",
+        "SELECT * FROM sellers WHERE seller_id = $1",
         [user.user_id],
       );
       if (sellerCheck.rows.length > 0) {
