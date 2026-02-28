@@ -49,7 +49,7 @@ exports.addItemToCart = async (req, res) => {
     );
 
     const productResult = await client.query(
-      `SELECT Price FROM Products WHERE Product_ID = $1`,
+      `SELECT Unit_Price FROM Products WHERE Product_ID = $1`,
       [product_id],
     );
 
@@ -57,15 +57,15 @@ exports.addItemToCart = async (req, res) => {
       return res.status(400).json({ message: "Cart or product not found" });
     }
 
-    const cart_id = cartResult.rows[0].Cart_ID;
-    const price = productResult.rows[0].Price;
+    const cart_id = cartResult.rows[0].cart_id;
+    const price = productResult.rows[0].unit_price;
     const net_price = price * quantity;
 
     await client.query(
       `INSERT INTO Cart_Items (Cart_ID, Product_ID, Quantity, Net_Price)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (Cart_ID, Product_ID) 
-       DO UPDATE SET Quantity = Quantity + $3, Net_Price = Net_Price + $4`,
+       DO UPDATE SET Quantity = Cart_Items.Quantity + $3, Net_Price = Cart_Items.Net_Price + $4`,
       [cart_id, product_id, quantity, net_price],
     );
 
@@ -88,7 +88,7 @@ exports.removeItemFromCart = async (req, res) => {
     const deleteQuery = await pool.query(
       `DELETE FROM Cart_Items
        WHERE Cart_ID = (SELECT Cart_ID FROM Carts WHERE Customer_ID = $1)
-       AND Item_ID = $2`,
+       AND Product_ID = $2`,
       [customer_id, itemId],
     );
 
@@ -118,7 +118,7 @@ exports.updateCartItem = async (req, res) => {
     }
 
     const priceResult = await pool.query(
-      `SELECT Price FROM Products WHERE Product_ID = $1`,
+      `SELECT Unit_Price FROM Products WHERE Product_ID = $1`,
       [product_id],
     );
 
@@ -126,7 +126,7 @@ exports.updateCartItem = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const price = priceResult.rows[0].Price;
+    const price = priceResult.rows[0].unit_price;
     const net_price = price * quantity;
 
     const updateQuery = await pool.query(

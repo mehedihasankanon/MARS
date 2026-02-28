@@ -39,10 +39,12 @@ export function AuthProvider({ children }) {
     if (savedToken) {
       setToken(savedToken);
       // Fetch user profile with saved token
+      // The backend now returns the `role` field alongside user data,
+      // so role-gated features (Dashboard, Cart) work after page refresh.
       api
         .get("/users/profile")
         .then((res) => {
-          setUser(res.data);
+          setUser(res.data); // res.data now includes { ...user fields, role }
         })
         .catch(() => {
           // Token is invalid/expired — clear it

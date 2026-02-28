@@ -100,6 +100,13 @@ exports.placeOrder = async (req, res) => {
       [order.order_id, addressId],
     );
 
+    // Clear the customer's cart after successful order
+    await client.query(
+      `DELETE FROM Cart_Items
+       WHERE Cart_ID = (SELECT Cart_ID FROM Carts WHERE Customer_ID = $1)`,
+      [customerId],
+    );
+
     await client.query("COMMIT");
 
     res.status(201).json({ message: "Order placed successfully", order });

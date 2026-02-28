@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background circle (dark space) -->
+  <circle cx="32" cy="32" r="32" fill="#0A0A0A"/>
+  <!-- Mars planet -->
+  <circle cx="32" cy="28" r="18" fill="#E85D26"/>
+  <!-- Planet surface details -->
+  <circle cx="26" cy="24" r="4" fill="#C44A1A" opacity="0.6"/>
+  <circle cx="38" cy="20" r="3" fill="#C44A1A" opacity="0.5"/>
+  <circle cx="34" cy="34" r="5" fill="#C44A1A" opacity="0.4"/>
+  <!-- Orbit ring -->
+  <ellipse cx="32" cy="28" rx="28" ry="8" fill="none" stroke="#E85D26" stroke-width="2" transform="rotate(-20 32 28)" opacity="0.7"/>
+  <!-- Shopping cart handle -->
+  <path d="M18 48 L18 42 L46 42 L44 52 L22 52 Z" fill="none" stroke="#E85D26" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Cart wheels -->
+  <circle cx="24" cy="55" r="2.5" fill="#F59E0B"/>
+  <circle cx="42" cy="55" r="2.5" fill="#F59E0B"/>
+</svg>

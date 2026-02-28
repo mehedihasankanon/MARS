@@ -11,5 +11,17 @@ router.post(
   authorizeRoles("seller", "admin"),
   productController.createProduct,
 );
+router.put(
+  "/:id",
+  authenticateToken,
+  authorizeRoles("seller", "admin"),
+  productController.updateProduct,
+);
+router.delete(
+  "/:id",
+  authenticateToken,
+  authorizeRoles("seller", "admin"),
+  productController.deleteProduct,
+);
 
 module.exports = router;
