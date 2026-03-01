@@ -6,49 +6,14 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
-/**
- * =====================================================================
- * ORDERS PAGE — /orders
- * =====================================================================
- *
- * PURPOSE: Shows the logged-in user's order history.
- *          Each order displays its status, total, date, and items.
- *
- * WHO CAN ACCESS: Any logged-in user (customer sees their purchases).
- *
- * DATA FLOW:
- * 1. Page loads → check auth → redirect if not logged in
- * 2. GET /api/orders/my-orders (JWT token sent automatically)
- * 3. Backend queries: SELECT * FROM Orders WHERE Customer_ID = $1
- * 4. Also aggregates order items via json_agg()
- * 5. Returns: array of order objects, each with an "items" array
- *
- * BACKEND ENDPOINT: GET /api/orders/my-orders
- * RESPONSE FORMAT:
- *   [{
- *     order_id, customer_id, total_amount, order_status, order_date,
- *     delivery_fee, coupon_id,
- *     items: [{ product_id, quantity, net_price }]
- *   }]
- *
- * ORDER STATUSES (from schema):
- *   Pending → Processing → Shipped → Delivered → Cancelled
- *   Each status gets a different color badge.
- * =====================================================================
- */
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [orders, setOrders] = useState([]);       // Array of orders
-  const [loading, setLoading] = useState(true);   // Data loading state
-  const [error, setError] = useState('');          // Error message
+  const [orders, setOrders] = useState([]);       
+  const [loading, setLoading] = useState(true);   
+  const [error, setError] = useState('');          
 
-  /**
-   * ── AUTH CHECK + DATA FETCH ──────────────────────────
-   * Wait for auth to load → if not logged in, redirect.
-   * If logged in → fetch orders from the backend.
-   */
   useEffect(() => {
     if (authLoading) return;
 
@@ -72,11 +37,6 @@ export default function OrdersPage() {
     fetchOrders();
   }, [user, authLoading]);
 
-  /**
-   * ── STATUS BADGE COLORS ──────────────────────────────
-   * Maps each order status to a color scheme for the badge.
-   * Returns Tailwind classes for text and background color.
-   */
   const getStatusStyle = (status) => {
     const styles = {
       'Pending':    'text-yellow-400 bg-yellow-400/10',
@@ -88,7 +48,6 @@ export default function OrdersPage() {
     return styles[status] || 'text-gray-400 bg-gray-400/10';
   };
 
-  // ── LOADING STATE ──────────────────────────────────────
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] py-12 px-4 sm:px-6 lg:px-8">
@@ -110,7 +69,6 @@ export default function OrdersPage() {
     );
   }
 
-  // ── ERROR STATE ────────────────────────────────────────
   if (error) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center px-4">
@@ -127,12 +85,10 @@ export default function OrdersPage() {
     );
   }
 
-  // ── MAIN RENDER ────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0A0A0A] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
 
-        {/* ── PAGE HEADER ─────────────────────────────── */}
         <h1 className="text-4xl font-bold text-white mb-2">
           My <span className="text-[#E85D26]">Orders</span>
         </h1>
@@ -140,10 +96,9 @@ export default function OrdersPage() {
           {orders.length} order{orders.length !== 1 ? 's' : ''} placed
         </p>
 
-        {/* ── EMPTY STATE ─────────────────────────────── */}
         {orders.length === 0 ? (
           <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
-            <span className="text-6xl block mb-4">📋</span>
+            <span className="text-6xl block mb-4"></span>
             <h2 className="text-2xl font-bold text-white mb-2">No orders yet</h2>
             <p className="text-gray-400 mb-6">When you place an order, it will appear here.</p>
             <Link
@@ -154,24 +109,22 @@ export default function OrdersPage() {
             </Link>
           </div>
         ) : (
-          /* ── ORDERS LIST ──────────────────────────────── */
+
           <div className="space-y-4">
             {orders.map((order) => (
-              /* ── SINGLE ORDER CARD ────────────────────
-                 Shows: Order ID, Date, Status, Items, Total
-                 ─────────────────────────────────────── */
+
               <div
                 key={order.order_id}
                 className="bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden"
               >
-                {/* Order header row */}
+
                 <div className="px-6 py-4 border-b border-[#1A1A1A] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    {/* Order ID (shortened UUID for readability) */}
+
                     <p className="text-sm text-gray-500">
                       Order <span className="text-gray-300 font-mono">#{order.order_id?.slice(0, 8)}</span>
                     </p>
-                    {/* Order date */}
+
                     <p className="text-xs text-gray-600">
                       {order.order_date
                         ? new Date(order.order_date).toLocaleDateString('en-US', {
@@ -183,13 +136,11 @@ export default function OrdersPage() {
                     </p>
                   </div>
 
-                  {/* Status badge */}
                   <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${getStatusStyle(order.order_status)}`}>
                     {order.order_status}
                   </span>
                 </div>
 
-                {/* Order items list */}
                 <div className="px-6 py-4">
                   {order.items && order.items.length > 0 ? (
                     <div className="space-y-2">
@@ -215,7 +166,6 @@ export default function OrdersPage() {
                   )}
                 </div>
 
-                {/* Order footer — total amount */}
                 <div className="px-6 py-4 bg-[#0D0D0D] flex justify-between items-center">
                   <div className="text-sm text-gray-500">
                     {order.delivery_fee > 0 && (

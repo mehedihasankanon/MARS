@@ -6,83 +6,30 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
-/**
- * =====================================================================
- * SELLER DASHBOARD — /dashboard
- * =====================================================================
- *
- * PURPOSE: Provides sellers with a management interface for their
- *          product listings. Sellers can view their current products
- *          and create new ones.
- *
- * WHO CAN ACCESS: Only users with role="seller" or role="admin"
- *
- * LAYOUT: Two-tab interface
- *   Tab 1 — "My Products":  lists products the seller has posted
- *   Tab 2 — "Add Product":  form to create a new product listing
- *
- * DATA FLOW — My Products:
- *   1. GET /api/products (fetches ALL products with seller_name)
- *   2. Client-side filter: keep only products where seller_name
- *      matches the logged-in user's username
- *   3. Display in a responsive card grid
- *
- * DATA FLOW — Add Product:
- *   1. User fills form: name, description, price, stock, condition, category
- *   2. POST /api/products (requires JWT + seller/admin role)
- *   3. Backend: INSERT INTO Products ... RETURNING *
- *   4. On success: clear form + switch to "My Products" tab + refetch
- *
- * BACKEND ENDPOINTS USED:
- *   GET  /api/products   — no auth needed, returns all products
- *   POST /api/products   — requires authenticateToken + authorizeRoles("seller","admin")
- *     Body: { name, description, unitPrice, stockQuantity, conditionState, categoryId }
- *
- * SCHEMA REFERENCE (Products table):
- *   Product_ID     UUID (auto)
- *   Seller_ID      UUID (from JWT: req.user.userId)
- *   Category_ID    UUID (selected by seller)
- *   Name           VARCHAR(100) NOT NULL
- *   Description    TEXT
- *   Unit_Price     DECIMAL(10,2) NOT NULL
- *   Stock_Quantity INT DEFAULT 0
- *   Condition_State VARCHAR(50)
- *   Adding_Date    TIMESTAMP DEFAULT now()
- * =====================================================================
- */
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  // ── UI STATE ─────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState('products'); // 'products' | 'add'
+  const [activeTab, setActiveTab] = useState('products'); 
 
-  // ── MY PRODUCTS STATE ────────────────────────────────
-  const [allProducts, setAllProducts] = useState([]);       // All products from API
-  const [myProducts, setMyProducts] = useState([]);         // Filtered to this seller
+  const [allProducts, setAllProducts] = useState([]);       
+  const [myProducts, setMyProducts] = useState([]);         
   const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // ── CATEGORIES LIST (extracted from all products) ────
   const [categories, setCategories] = useState([]);
 
-  // ── ADD PRODUCT FORM STATE ───────────────────────────
   const [form, setForm] = useState({
     name: '',
     description: '',
     unitPrice: '',
     stockQuantity: '',
-    conditionState: 'New',     // Default condition
+    conditionState: 'New',     
     categoryId: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
-  /**
-   * ── AUTH GUARD ───────────────────────────────────────
-   * Only sellers and admins should access this page.
-   * Customers are redirected to the home page.
-   */
   useEffect(() => {
     if (authLoading) return;
 
@@ -97,12 +44,6 @@ export default function DashboardPage() {
     }
   }, [user, authLoading]);
 
-  /**
-   * ── FETCH ALL PRODUCTS + CATEGORIES ─────────────────
-   * GET /api/products returns all products with seller_name.
-   * GET /api/categories returns all categories from the DB.
-   * We filter products client-side to find "my" products.
-   */
   useEffect(() => {
     if (!user) return;
 
@@ -116,20 +57,17 @@ export default function DashboardPage() {
         const all = prodRes.data;
         setAllProducts(all);
 
-        // Filter products belonging to this seller
         const mine = all.filter(
           (p) => p.seller_name === user.username
         );
         setMyProducts(mine);
 
-        // Use categories from the dedicated endpoint
         const catList = catRes.data.map((c) => ({
           id: c.category_id,
           name: c.name,
         }));
         setCategories(catList);
 
-        // Pre-select first category if available
         if (catList.length > 0 && !form.categoryId) {
           setForm((prev) => ({ ...prev, categoryId: catList[0].id }));
         }
@@ -143,29 +81,15 @@ export default function DashboardPage() {
     fetchData();
   }, [user]);
 
-  /**
-   * ── FORM CHANGE HANDLER ─────────────────────────────
-   * Generic handler for all form inputs.
-   * Uses the input's `name` attribute as the state key.
-   *
-   * e.target.name  → which field changed (e.g. "name", "unitPrice")
-   * e.target.value → new value typed by user
-   */
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  /**
-   * ── FORM SUBMIT — CREATE PRODUCT ───────────────────
-   * Validates required fields, then sends POST /api/products.
-   * On success: clears form, refetches product list, switches tab.
-   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
     setFormSuccess('');
 
-    // ── Client-side validation ────────────────────────
     if (!form.name || !form.unitPrice || !form.categoryId) {
       setFormError('Name, price, and category are required.');
       return;
@@ -192,12 +116,10 @@ export default function DashboardPage() {
         categoryId: categories[0]?.id || '',
       });
 
-      // Refetch to update the "My Products" tab
       const res = await api.get('/products');
       setAllProducts(res.data);
       setMyProducts(res.data.filter((p) => p.seller_name === user.username));
 
-      // Switch to "My Products" after a short delay
       setTimeout(() => {
         setActiveTab('products');
         setFormSuccess('');
@@ -210,7 +132,6 @@ export default function DashboardPage() {
     }
   };
 
-  // ── LOADING / AUTH GUARD RENDER ────────────────────
   if (authLoading || !user) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
@@ -219,12 +140,10 @@ export default function DashboardPage() {
     );
   }
 
-  // ── MAIN RENDER ────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0A0A0A] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
 
-        {/* ── PAGE HEADER ────────────────────────────── */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">
             Seller <span className="text-[#E85D26]">Dashboard</span>
@@ -234,9 +153,6 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* ── TAB BAR ────────────────────────────────── 
-             Two tabs: "My Products" and "Add Product"
-             Active tab gets orange underline + text ──── */}
         <div className="flex border-b border-[#2A2A2A] mb-8">
           <button
             onClick={() => setActiveTab('products')}
@@ -267,13 +183,10 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* ═══════════════════════════════════════════════
-            TAB 1: MY PRODUCTS — Product cards grid
-            ═══════════════════════════════════════════════ */}
         {activeTab === 'products' && (
           <>
             {loadingProducts ? (
-              /* Loading skeleton — 3 card placeholders */
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-5 animate-pulse">
@@ -284,9 +197,9 @@ export default function DashboardPage() {
                 ))}
               </div>
             ) : myProducts.length === 0 ? (
-              /* Empty state — no products yet */
+
               <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
-                <span className="text-6xl block mb-4">📦</span>
+                <span className="text-6xl block mb-4"></span>
                 <h2 className="text-2xl font-bold text-white mb-2">No products listed</h2>
                 <p className="text-gray-400 mb-6">
                   Start selling by adding your first product.
@@ -299,7 +212,7 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
-              /* Product cards grid */
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myProducts.map((product) => (
                   <Link
@@ -307,17 +220,15 @@ export default function DashboardPage() {
                     href={`/products/${product.product_id}`}
                     className="group bg-[#111111] rounded-xl border border-[#2A2A2A] p-5 hover:border-[#E85D26]/50 transition-all"
                   >
-                    {/* Product name */}
+
                     <h3 className="text-lg font-semibold text-white group-hover:text-[#E85D26] transition-colors mb-1 truncate">
                       {product.name}
                     </h3>
 
-                    {/* Category badge */}
                     <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-[#E85D26]/10 text-[#E85D26] mb-3">
                       {product.category_name}
                     </span>
 
-                    {/* Price + Stock row */}
                     <div className="flex justify-between items-center">
                       <p className="text-[#F59E0B] font-bold text-lg">
                         ${parseFloat(product.unit_price).toFixed(2)}
@@ -329,7 +240,6 @@ export default function DashboardPage() {
                       </p>
                     </div>
 
-                    {/* Condition + Date */}
                     <div className="flex justify-between items-center mt-3 text-xs text-gray-500">
                       {product.condition_state && (
                         <span>{product.condition_state}</span>
@@ -347,16 +257,12 @@ export default function DashboardPage() {
           </>
         )}
 
-        {/* ═══════════════════════════════════════════════
-            TAB 2: ADD PRODUCT — New product form
-            ═══════════════════════════════════════════════ */}
         {activeTab === 'add' && (
           <div className="max-w-2xl mx-auto bg-[#111111] rounded-xl border border-[#2A2A2A] p-8">
             <h2 className="text-2xl font-bold text-white mb-6">
               Create New <span className="text-[#E85D26]">Listing</span>
             </h2>
 
-            {/* ── Error / Success banners ─────────────── */}
             {formError && (
               <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
                 {formError}
@@ -370,7 +276,6 @@ export default function DashboardPage() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
 
-              {/* ── Product Name ───────────────────────── */}
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-1">
                   Product Name <span className="text-red-400">*</span>
@@ -387,7 +292,6 @@ export default function DashboardPage() {
                 />
               </div>
 
-              {/* ── Description ────────────────────────── */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
                   Description
@@ -403,7 +307,6 @@ export default function DashboardPage() {
                 />
               </div>
 
-              {/* ── Price + Stock (side by side) ─────── */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-300 mb-1">
@@ -438,7 +341,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* ── Category + Condition (side by side) ─ */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="categoryId" className="block text-sm font-medium text-gray-300 mb-1">
@@ -478,7 +380,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* ── Submit button ──────────────────────── */}
               <button
                 type="submit"
                 disabled={submitting}

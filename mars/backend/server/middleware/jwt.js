@@ -7,8 +7,6 @@ exports.JWT_SECRET = JWT_SECRET;
 exports.authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; 
-    // header formatted: Bearer <token>
-    // we take the 2nd element
 
     if (!token) {
         return res.status(401).json({ error: 'Access token missing' });
@@ -18,16 +16,14 @@ exports.authenticateToken = (req, res, next) => {
         const decoded = jwt.verify(token, JWT_SECRET);
 
         req.user = decoded;
-        // pass the request to the next handler 
+
         next();
     } catch (err) {
         console.error(err);
         res.status(403).json({ error: 'Invalid or expired token' });
     }
 
-
 };
-
 
 exports.authorizeRoles = (...allowedRoles) => {
     return (req, res, next) => {
@@ -38,4 +34,3 @@ exports.authorizeRoles = (...allowedRoles) => {
         next();
     };
 };
-

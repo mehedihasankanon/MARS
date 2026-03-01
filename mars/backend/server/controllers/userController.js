@@ -1,15 +1,7 @@
 const pool = require("../../../database/db.js");
 
-/**
- * Columns to select — everything EXCEPT the password hash.
- * Never send password hashes to the frontend.
- */
 const USER_COLUMNS = `User_ID, Username, Email, First_Name, Last_Name, Phone_Number, Last_Login, Created_At`;
 
-/**
- * GET /api/users — Admin only
- * Returns all users in the system (without password hashes).
- */
 exports.getAllUsers = async (req, res) => {
   try {
     const result = await pool.query(
@@ -31,10 +23,6 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-/**
- * GET /api/users/:id — Get a single user by ID
- * BUG FIX: was using "WHERE id" instead of "WHERE User_ID"
- */
 exports.getUserById = async (req, res) => {
   const userId = req.params.id;
   try {
@@ -52,11 +40,6 @@ exports.getUserById = async (req, res) => {
   }
 };
 
-/**
- * GET /api/users/profile — Get current user's profile
- * Also determines role by checking Admin/Seller/Customer tables.
- * This is critical for AuthContext session restoration on page refresh.
- */
 exports.getProfile = async (req, res) => {
   try {
     const result = await pool.query(

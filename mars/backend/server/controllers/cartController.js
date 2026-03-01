@@ -1,7 +1,5 @@
 const pool = require("../../../database/db");
 
-// router.get('/', authenticateToken, authorizeRoles("customer"), cartController.getCartItems);
-
 exports.getCartItems = async (req, res) => {
   const userId = req.user.userId;
 
@@ -26,16 +24,12 @@ exports.getCartItems = async (req, res) => {
   }
 };
 
-// router.post("/items", authenticateToken, authorizeRoles("customer"), cartController.addItemToCart);
-
 exports.addItemToCart = async (req, res) => {
   const client = await pool.connect();
   try {
     const customer_id = req.user.userId;
     const { product_id, quantity } = req.body;
 
-    // Ensure cart exists
-    // If cart already exists, do nothing
     await client.query(
       `INSERT INTO Carts (Customer_ID, Total_Amount)
        VALUES ($1, 0)
@@ -78,8 +72,6 @@ exports.addItemToCart = async (req, res) => {
   }
 };
 
-// router.delete("/items/:itemId", authenticateToken, authorizeRoles("customer"), cartController.removeItemFromCart);
-
 exports.removeItemFromCart = async (req, res) => {
   try {
     const customer_id = req.user.userId;
@@ -102,8 +94,6 @@ exports.removeItemFromCart = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
-// router.put("/items/:productId", authenticateToken, authorizeRoles("customer"), cartController.updateCartItem);
 
 exports.updateCartItem = async (req, res) => {
   try {

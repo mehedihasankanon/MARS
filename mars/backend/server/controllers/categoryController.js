@@ -1,9 +1,5 @@
 const pool = require("../../../database/db.js");
 
-/**
- * GET /api/categories
- * Returns all categories (public — no auth required).
- */
 exports.getAllCategories = async (req, res) => {
   try {
     const result = await pool.query(
@@ -19,11 +15,6 @@ exports.getAllCategories = async (req, res) => {
   }
 };
 
-/**
- * POST /api/categories — Admin only
- * Creates a new category.
- * Body: { name, description, image, parentCategoryId }
- */
 exports.createCategory = async (req, res) => {
   try {
     const { name, description, image, parentCategoryId } = req.body;
@@ -42,7 +33,7 @@ exports.createCategory = async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
-    // Unique constraint violation on Name
+
     if (error.code === "23505") {
       return res.status(409).json({ error: "A category with that name already exists" });
     }

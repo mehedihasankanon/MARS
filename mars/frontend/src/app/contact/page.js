@@ -2,17 +2,13 @@
 
 import { useState } from 'react';
 
-/**
- * CONTACT PAGE — /contact
- * Simple contact form (frontend-only, no backend endpoint yet).
- */
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // In a real app, this would POST to a backend endpoint
+
     setSubmitted(true);
   };
 

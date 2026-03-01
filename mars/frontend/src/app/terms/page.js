@@ -1,8 +1,5 @@
 'use client';
 
-/**
- * TERMS OF SERVICE PAGE — /terms
- */
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] py-16 px-4 sm:px-6 lg:px-8">

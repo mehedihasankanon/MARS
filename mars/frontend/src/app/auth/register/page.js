@@ -4,42 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-/**
- * =====================================================================
- * REGISTER PAGE — /auth/register
- * =====================================================================
- *
- * PURPOSE: Let new users create an account (as Customer or Seller).
- *
- * HOW NEXT.JS ROUTING WORKS:
- *   This file is at: frontend/src/app/auth/register/page.js
- *   Next.js automatically maps this to URL: /auth/register
- *   No router configuration needed — the FOLDER STRUCTURE IS the routing.
- *
- * FLOW:
- * 1. User fills in the registration form (name, email, password, role)
- * 2. Client-side validation checks passwords match & length ≥ 6
- * 3. handleSubmit() calls register() from AuthContext
- * 4. AuthContext sends POST /api/auth/register to Express backend
- * 5. Backend creates user in PostgreSQL → returns JWT token
- * 6. AuthContext stores JWT in localStorage → redirects to homepage
- *
- * BACKEND ENDPOINT: POST /api/auth/register
- * REQUEST BODY:     { username, email, password, firstName, lastName, phone, role }
- * RESPONSE:         { message, token, user }
- *
- * STATE:
- * - formData:  object holding all form field values
- * - error:     validation or server error message
- * - isLoading: true while request is in flight
- * =====================================================================
- */
 export default function RegisterPage() {
-  /* ── FORM STATE ─────────────────────────────────────────
-     All form fields stored in a single object.
-     Each field has a matching name="" attribute in the JSX.
-     When user types, handleChange() updates the right field.
-     ─────────────────────────────────────────────────────── */
+
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -48,48 +14,25 @@ export default function RegisterPage() {
     firstName: "",
     lastName: "",
     phone: "",
-    role: "customer", // default = buyer (can switch to "seller")
+    role: "customer", 
   });
 
-  const [error, setError] = useState("");            // Error message string
-  const [isLoading, setIsLoading] = useState(false);  // Loading spinner state
-  const { register } = useAuth();                     // register() from AuthContext
+  const [error, setError] = useState("");            
+  const [isLoading, setIsLoading] = useState(false);  
+  const { register } = useAuth();                     
 
-  /**
-   * handleChange — Generic change handler for ALL form fields.
-   *
-   * HOW IT WORKS:
-   *   e.target.name  = the "name" attribute of the input (e.g., "email")
-   *   e.target.value = what the user typed (e.g., "test@example.com")
-   *
-   *   { ...formData, [name]: value } = copy all fields, then overwrite
-   *   just the one that changed. This is called the "spread operator pattern".
-   *
-   * EXAMPLE: User types "John" into firstName field
-   *   → name = "firstName", value = "John"
-   *   → formData becomes { ...old, firstName: "John" }
-   */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  /**
-   * handleSubmit — Validates form data, then sends to backend.
-   *
-   * VALIDATION STEPS:
-   * 1. Check passwords match (client-side, instant feedback)
-   * 2. Check password length ≥ 6 (client-side)
-   * 3. Send to backend (server-side validation may catch more)
-   */
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Prevent default HTML form submission (page reload)
+    e.preventDefault(); 
     setError("");
 
-    // ── Client-side validation ──
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match");
-      return; // Stop here — don't send to backend
+      return; 
     }
 
     if (formData.password.length < 6) {
@@ -100,8 +43,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Send to backend via AuthContext.register()
-      // We EXCLUDE confirmPassword — backend doesn't need it
+
       await register({
         username: formData.username,
         email: formData.email,
@@ -111,10 +53,9 @@ export default function RegisterPage() {
         phone: formData.phone,
         role: formData.role,
       });
-      // On success → AuthContext stores JWT and redirects to homepage
+
     } catch (err) {
-      // err.response.data comes from Express backend
-      // e.g., "Email already in use" or "Username taken"
+
       setError(
         err.response?.data?.error || "Registration failed. Please try again."
       );
@@ -124,19 +65,11 @@ export default function RegisterPage() {
   };
 
   return (
-    /* ── PAGE CONTAINER ─────────────────────────────────────
-       Full-height dark background with centered form card.
-       py-12 = vertical padding so form doesn't touch edges.
-       ─────────────────────────────────────────────────────── */
+
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] py-12 px-4 sm:px-6 lg:px-8">
 
-      {/* ── FORM CARD ───────────────────────────────────────
-           Dark elevated card with border for depth.
-           max-w-md = caps at 448px width.
-           ─────────────────────────────────────────────────── */}
       <div className="max-w-md w-full space-y-8 bg-[#111111] p-8 rounded-2xl border border-[#2A2A2A] shadow-2xl">
 
-        {/* ── HEADER ────────────────────────────────────── */}
         <div className="text-center">
           <h2 className="text-3xl font-bold text-white">
             Create your <span className="text-[#E85D26]">account</span>
@@ -152,18 +85,14 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        {/* ── ERROR MESSAGE — Only shows when error state is non-empty ── */}
         {error && (
           <div className="bg-red-900/20 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* ── REGISTRATION FORM ──────────────────────────── */}
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
 
-          {/* ── ROW 1: First Name + Last Name (side by side) ── 
-               grid grid-cols-2 = two equal columns */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="firstName" className="block text-sm font-medium text-gray-300 mb-1">
@@ -196,7 +125,6 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* ── Username Field ──────────────────────────── */}
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-1">
               Username
@@ -213,7 +141,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ── Email Field ─────────────────────────────── */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
               Email address
@@ -230,7 +157,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ── Phone Field ─────────────────────────────── */}
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-1">
               Phone Number
@@ -247,7 +173,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ── Password Field ──────────────────────────── */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
               Password
@@ -264,7 +189,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ── Confirm Password Field ──────────────────── */}
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-1">
               Confirm Password
@@ -281,17 +205,12 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ── ROLE SELECTION ──────────────────────────────
-               Two toggle buttons: Customer (buyer) or Seller.
-               Clicking one sets formData.role to the corresponding value.
-               The selected button gets an orange highlight.
-               ─────────────────────────────────────────────── */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               I want to
             </label>
             <div className="grid grid-cols-2 gap-4">
-              {/* Customer (Buyer) Button */}
+
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, role: "customer" })}
@@ -301,10 +220,10 @@ export default function RegisterPage() {
                     : "border-[#2A2A2A] text-gray-400 hover:border-[#333]"
                 }`}
               >
-                <span className="block text-2xl mb-1">🛒</span>
+                <span className="block text-2xl mb-1"></span>
                 <span className="text-sm font-medium">Buy Products</span>
               </button>
-              {/* Seller Button */}
+
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, role: "seller" })}
@@ -314,13 +233,12 @@ export default function RegisterPage() {
                     : "border-[#2A2A2A] text-gray-400 hover:border-[#333]"
                 }`}
               >
-                <span className="block text-2xl mb-1">🏪</span>
+                <span className="block text-2xl mb-1"></span>
                 <span className="text-sm font-medium">Sell Products</span>
               </button>
             </div>
           </div>
 
-          {/* ── SUBMIT BUTTON ──────────────────────────── */}
           <button
             type="submit"
             disabled={isLoading}

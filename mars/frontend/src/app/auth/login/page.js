@@ -4,79 +4,37 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-/**
- * =====================================================================
- * LOGIN PAGE — /auth/login
- * =====================================================================
- *
- * PURPOSE: Let existing users sign in with email + password.
- *
- * HOW IT WORKS (step by step):
- * 1. User fills in email and password in the form
- * 2. User clicks "Sign In" → handleSubmit() is called
- * 3. handleSubmit() calls login() from AuthContext
- * 4. AuthContext sends POST /api/auth/login to Express backend
- * 5. Backend checks credentials against PostgreSQL database
- * 6. If valid → returns JWT token + user data
- * 7. AuthContext stores JWT in localStorage & redirects to homepage
- * 8. If invalid → shows error message on the form
- *
- * BACKEND ENDPOINT: POST /api/auth/login
- * REQUEST BODY:     { email, password }
- * RESPONSE:         { message, token, user, role }
- *
- * STATE VARIABLES:
- * - email:     what the user typed in the email field
- * - password:  what the user typed in the password field
- * - error:     error message to display (empty = no error)
- * - isLoading: true while waiting for backend response
- * =====================================================================
- */
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth(); // Get the login function from global auth state
+  const { login } = useAuth(); 
 
-  /**
-   * handleSubmit — Runs when the form is submitted
-   *
-   * e.preventDefault() stops the browser from reloading the page
-   * (default HTML form behavior). We handle submission with JavaScript instead.
-   */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");        // Clear any previous error
-    setIsLoading(true);  // Show loading state on button
+    setError("");        
+    setIsLoading(true);  
 
     try {
-      await login(email, password); // Sends request to backend
-      // On success: AuthContext redirects to homepage automatically
+      await login(email, password); 
+
     } catch (err) {
-      // On failure: show the error from the backend (or a fallback message)
+
       setError(
         err.response?.data?.error || "Login failed. Please try again."
       );
     } finally {
-      setIsLoading(false); // Always re-enable the button
+      setIsLoading(false); 
     }
   };
 
   return (
-    /* ── PAGE CONTAINER ─────────────────────────────────────
-       min-h-screen = takes full viewport height
-       flex + items-center + justify-center = centers the form card
-       ─────────────────────────────────────────────────────── */
+
     <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] py-12 px-4 sm:px-6 lg:px-8">
 
-      {/* ── FORM CARD ───────────────────────────────────────
-           Dark card with subtle border, centered on the page
-           max-w-md = caps width at 448px for readability
-           ─────────────────────────────────────────────────── */}
       <div className="max-w-md w-full space-y-8 bg-[#111111] p-8 rounded-2xl border border-[#2A2A2A] shadow-2xl">
 
-        {/* ── HEADER: Title + Link to Register ─────────── */}
         <div className="text-center">
           <h2 className="text-3xl font-bold text-white">
             Sign in to <span className="text-[#E85D26]">MARS</span>
@@ -89,23 +47,14 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* ── ERROR MESSAGE ────────────────────────────────
-             Only shows when "error" state is not empty.
-             Red-tinted box with the error text.
-             ─────────────────────────────────────────────── */}
         {error && (
           <div className="bg-red-900/20 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* ── LOGIN FORM ────────────────────────────────────
-             onSubmit={handleSubmit} = calls our function when submitted
-             Each field uses controlled components (value + onChange)
-             ─────────────────────────────────────────────── */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
 
-          {/* Email Input Field */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">
               Email address
@@ -122,7 +71,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Password Input Field */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-1">
               Password
@@ -139,7 +87,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Submit Button — disabled while loading to prevent double-submit */}
           <button
             type="submit"
             disabled={isLoading}

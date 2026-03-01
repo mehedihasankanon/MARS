@@ -5,34 +5,17 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
-/**
- * CATEGORIES PAGE — /categories
- *
- * Displays all product categories from the dedicated /api/categories endpoint.
- * If the logged-in user is an admin, an "Add Category" form is shown at the top.
- *
- * DATA FLOW:
- *   GET  /api/categories          → public, returns all categories
- *   POST /api/categories          → admin only, creates a new category
- *     Body: { name, description, parentCategoryId }
- *
- * SCHEMA (Categories table):
- *   Category_ID, Name (UNIQUE), Description, Image, Last_Updated_at,
- *   Parent_Category_ID (self-FK), Updated_By_Admin_ID (FK → Admins)
- */
 export default function CategoriesPage() {
   const { user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ── Admin form state ───────────────────────────────
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', description: '', parentCategoryId: '' });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [formSuccess, setFormSuccess] = useState('');
 
-  /** Fetch categories from the dedicated endpoint */
   const fetchCategories = async () => {
     try {
       const res = await api.get('/categories');
@@ -48,7 +31,6 @@ export default function CategoriesPage() {
     fetchCategories();
   }, []);
 
-  /** Admin: create a new category */
   const handleAddCategory = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -68,7 +50,7 @@ export default function CategoriesPage() {
       });
       setFormSuccess(`Category "${form.name}" created!`);
       setForm({ name: '', description: '', parentCategoryId: '' });
-      // Refresh the list
+
       await fetchCategories();
       setTimeout(() => setFormSuccess(''), 3000);
     } catch (err) {
@@ -78,7 +60,6 @@ export default function CategoriesPage() {
     }
   };
 
-  // ── Loading skeleton ──────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] py-16 px-4 sm:px-6 lg:px-8">
@@ -104,7 +85,7 @@ export default function CategoriesPage() {
           <h1 className="text-4xl font-bold text-white">
             <span className="text-[#E85D26]">Categories</span>
           </h1>
-          {/* Admin-only: toggle the add form */}
+
           {user?.role === 'admin' && (
             <button
               onClick={() => setShowForm(!showForm)}
@@ -116,7 +97,6 @@ export default function CategoriesPage() {
         </div>
         <p className="text-gray-400 mb-8">Browse products by category.</p>
 
-        {/* ── ADMIN: Add Category Form ────────────────── */}
         {showForm && user?.role === 'admin' && (
           <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6 mb-8">
             <h2 className="text-lg font-semibold text-white mb-4">
@@ -135,7 +115,7 @@ export default function CategoriesPage() {
             )}
 
             <form onSubmit={handleAddCategory} className="space-y-4">
-              {/* Name */}
+
               <div>
                 <label htmlFor="catName" className="block text-sm text-gray-300 mb-1">
                   Name <span className="text-red-400">*</span>
@@ -151,7 +131,6 @@ export default function CategoriesPage() {
                 />
               </div>
 
-              {/* Description */}
               <div>
                 <label htmlFor="catDesc" className="block text-sm text-gray-300 mb-1">
                   Description
@@ -166,7 +145,6 @@ export default function CategoriesPage() {
                 />
               </div>
 
-              {/* Parent Category (optional) */}
               {categories.length > 0 && (
                 <div>
                   <label htmlFor="parentCat" className="block text-sm text-gray-300 mb-1">
@@ -199,10 +177,9 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        {/* ── CATEGORIES GRID ─────────────────────────── */}
         {categories.length === 0 ? (
           <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
-            <span className="text-5xl block mb-4">📂</span>
+            <span className="text-5xl block mb-4"></span>
             <h2 className="text-xl font-bold text-white mb-2">No categories yet</h2>
             <p className="text-gray-400">
               {user?.role === 'admin'

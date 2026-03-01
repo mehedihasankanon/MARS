@@ -1,9 +1,5 @@
 'use client';
 
-/**
- * ABOUT PAGE — /about
- * Simple informational page about the MARS platform.
- */
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] py-16 px-4 sm:px-6 lg:px-8">

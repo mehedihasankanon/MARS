@@ -1,15 +1,5 @@
-/**
- * ADDRESS CONTROLLER
- * Handles CRUD for user shipping addresses.
- * Used by the checkout flow to save/retrieve delivery addresses.
- */
-
 const pool = require("../../../database/db.js");
 
-/**
- * GET /api/addresses
- * Returns all addresses belonging to the authenticated user.
- */
 exports.getMyAddresses = async (req, res) => {
   try {
     const result = await pool.query(
@@ -23,11 +13,6 @@ exports.getMyAddresses = async (req, res) => {
   }
 };
 
-/**
- * POST /api/addresses
- * Creates a new address for the authenticated user.
- * Body: { house, streetRoad, city, zipCode, addressType }
- */
 exports.createAddress = async (req, res) => {
   try {
     const { house, streetRoad, city, zipCode, addressType } = req.body;

@@ -5,7 +5,6 @@ require("dotenv").config({ path: path.resolve(__dirname, "../../frontend/.env.lo
 
 const pool = require("../../database/db.js");
 
-// Route imports
 const authRoutes = require("./routes/authRoutes");
 const userRoutes = require("./routes/userRoutes");
 const productRoutes = require("./routes/productRoutes");
@@ -16,11 +15,9 @@ const categoryRoutes = require("./routes/categoryRoutes");
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
@@ -29,7 +26,6 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/categories", categoryRoutes);
 
-// Health check
 app.get("/api/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");

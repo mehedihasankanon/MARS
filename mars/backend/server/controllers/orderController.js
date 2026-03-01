@@ -2,10 +2,7 @@ const pool = require("../../../database/db.js");
 
 exports.getMyOrders = async (req, res) => {
   try {
-    /**
-     * json_agg is a json aggregator function in postgres
-     * for building json objects from multiple rows
-     */
+
     const result = await pool.query(
       `
             SELECT o.*, json_agg(json_build_object(
@@ -13,7 +10,7 @@ exports.getMyOrders = async (req, res) => {
                 'quantity', oi.quantity,
                 'net_price', oi.Net_Price 
             )) as items 
-            
+
             FROM Orders o
             JOIN Order_Items oi ON oi.Order_ID = o.Order_ID
             WHERE o.Customer_ID = $1
@@ -33,8 +30,6 @@ exports.getMyOrders = async (req, res) => {
 exports.placeOrder = async (req, res) => {
   const customerId = req.user.userId;
   const { Items, addressId, couponId, deliveryFee } = req.body;
-  // items: [ { product_id, quantity } ]
-  // list of ordered tuples
 
   const client = await pool.connect();
 
@@ -100,7 +95,6 @@ exports.placeOrder = async (req, res) => {
       [order.order_id, addressId],
     );
 
-    // Clear the customer's cart after successful order
     await client.query(
       `DELETE FROM Cart_Items
        WHERE Cart_ID = (SELECT Cart_ID FROM Carts WHERE Customer_ID = $1)`,

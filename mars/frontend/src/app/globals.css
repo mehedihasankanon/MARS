@@ -1,52 +1,28 @@
-/* ============================================================
-   MARS — Marketplace and Retailing System
-   Global Stylesheet
-   
-   COLOR THEME:
-   - Background: Deep dark (#0A0A0A) — like outer space
-   - Primary:   Mars Orange (#E85D26) — main brand color
-   - Accent:    Amber Gold (#F59E0B) — highlights & glows
-   - Surface:   Dark grays (#111, #1A1A1A, #222) — cards/panels
-   - Text:      White (#FFFFFF) & light gray (#9CA3AF)
-   - Error:     Red (#EF4444) for form validation
-   ============================================================ */
-
 @import "tailwindcss";
 
-/* ── CSS Custom Properties (Variables) ──────────────────────
-   These define the MARS color palette.
-   Any component can use them via var(--mars-primary), etc.
-   Changing a value here updates it EVERYWHERE instantly.
-   ─────────────────────────────────────────────────────────── */
 :root {
-  /* Brand Colors */
-  --mars-primary: #E85D26;        /* Mars orange — buttons, links, accents   */
-  --mars-primary-hover: #D14F1E;  /* Darker orange — hover states            */
-  --mars-primary-light: #FF7A45;  /* Lighter orange — subtle highlights      */
-  --mars-accent: #F59E0B;         /* Amber gold — stars, badges, glows       */
-  --mars-accent-hover: #D97706;   /* Darker amber — hover states             */
+  --mars-primary: #E85D26;
+  --mars-primary-hover: #D14F1E;
+  --mars-primary-light: #FF7A45;
+  --mars-accent: #F59E0B;
+  --mars-accent-hover: #D97706;
 
-  /* Background Layers (darkest → lightest) */
-  --mars-bg-deep: #050505;        /* Deepest background — page body          */
-  --mars-bg: #0A0A0A;             /* Main background — sections              */
-  --mars-bg-card: #111111;        /* Card/panel background                   */
-  --mars-bg-elevated: #1A1A1A;    /* Elevated surfaces — hover cards         */
-  --mars-bg-input: #1E1E1E;       /* Form input background                   */
+  --mars-bg-deep: #050505;
+  --mars-bg: #0A0A0A;
+  --mars-bg-card: #111111;
+  --mars-bg-elevated: #1A1A1A;
+  --mars-bg-input: #1E1E1E;
 
-  /* Border Colors */
-  --mars-border: #2A2A2A;         /* Default borders                         */
-  --mars-border-light: #333333;   /* Lighter borders for hover               */
+  --mars-border: #2A2A2A;
+  --mars-border-light: #333333;
 
-  /* Text Colors */
-  --mars-text: #FFFFFF;           /* Primary text — headings                 */
-  --mars-text-secondary: #9CA3AF; /* Secondary text — descriptions           */
-  --mars-text-muted: #6B7280;     /* Muted text — placeholders               */
+  --mars-text: #FFFFFF;
+  --mars-text-secondary: #9CA3AF;
+  --mars-text-muted: #6B7280;
 
-  /* Gradients */
   --mars-gradient: linear-gradient(135deg, #E85D26 0%, #F59E0B 100%);
 }
 
-/* ── Theme Tokens for Tailwind ────────────────────────────── */
 @theme inline {
   --color-background: var(--mars-bg);
   --color-foreground: var(--mars-text);
@@ -54,22 +30,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* ── Base Body Styles ─────────────────────────────────────── */
 body {
   background: var(--mars-bg-deep);
   color: var(--mars-text);
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ── Custom Utility: Mars Orange Glow Effect ──────────────── 
-   Used on hero elements for a "planetary glow" visual        */
 .mars-glow {
   box-shadow: 0 0 40px rgba(232, 93, 38, 0.15),
               0 0 80px rgba(232, 93, 38, 0.05);
 }
 
-/* ── Custom Utility: Mars Text Gradient ───────────────────── 
-   Makes text shimmer with the orange-to-gold Mars gradient   */
 .mars-text-gradient {
   background: var(--mars-gradient);
   -webkit-background-clip: text;
@@ -77,7 +48,6 @@ body {
   background-clip: text;
 }
 
-/* ── Custom Utility: Animated pulse glow for CTAs ─────────── */
 @keyframes marsGlow {
   0%, 100% { box-shadow: 0 0 20px rgba(232, 93, 38, 0.3); }
   50%      { box-shadow: 0 0 40px rgba(232, 93, 38, 0.5); }
@@ -87,12 +57,10 @@ body {
   animation: marsGlow 2s ease-in-out infinite;
 }
 
-/* ── Smooth scrolling for the whole page ──────────────────── */
 html {
   scroll-behavior: smooth;
 }
 
-/* ── Selection color (when user highlights text) ──────────── */
 ::selection {
   background-color: rgba(232, 93, 38, 0.3);
   color: #FFFFFF;

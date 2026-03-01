@@ -78,9 +78,6 @@ exports.createProduct = async (req, res) => {
   }
 };
 
-/**
- * PUT /api/products/:id — Update a product (seller who owns it, or admin)
- */
 exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
@@ -88,7 +85,6 @@ exports.updateProduct = async (req, res) => {
     const userId = req.user.userId;
     const role = req.user.role;
 
-    // Verify ownership (unless admin)
     if (role !== "admin") {
       const ownerCheck = await pool.query(
         "SELECT Seller_ID FROM Products WHERE Product_ID = $1",
@@ -126,16 +122,12 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
-/**
- * DELETE /api/products/:id — Delete a product (seller who owns it, or admin)
- */
 exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.userId;
     const role = req.user.role;
 
-    // Verify ownership (unless admin)
     if (role !== "admin") {
       const ownerCheck = await pool.query(
         "SELECT Seller_ID FROM Products WHERE Product_ID = $1",
@@ -164,5 +156,3 @@ exports.deleteProduct = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
-
-
