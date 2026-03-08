@@ -12,4 +12,18 @@ router.post(
   categoryController.createCategory
 );
 
+router.put(
+  "/:name",
+  authenticateToken,
+  authorizeRoles("admin"),
+  categoryController.updateCategory
+);
+
+router.delete(
+  "/:name",
+  authenticateToken,
+  authorizeRoles("admin"),
+  categoryController.deleteCategory
+);
+
 module.exports = router;

@@ -71,7 +71,7 @@ exports.updateCategory = async (req, res) => {
     const { description, image, parentCategoryId } = req.body;
     const adminId = req.user.userId;
 
-    if (!name || name.trim() === "") {
+    if (!categoryName || categoryName.trim() === "") {
       await client.query("ROLLBACK");
       return res
         .status(400)
