@@ -1,7 +1,9 @@
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config({ path: path.resolve(__dirname, "../../frontend/.env.local") });
+require("dotenv").config({
+  path: path.resolve(__dirname, "../../backend/.env"),
+});
 
 const pool = require("../../database/db.js");
 

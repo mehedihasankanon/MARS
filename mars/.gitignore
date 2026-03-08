@@ -38,4 +38,8 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# environment files with secrets
+backend/.env
+frontend/.env.local
 next-env.d.ts
