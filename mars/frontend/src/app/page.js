@@ -2,8 +2,11 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Home() {
+  const { user } = useAuth();
+
   return (
     <div className="bg-[#0A0A0A]">
 
@@ -25,7 +28,7 @@ export default function Home() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 tracking-tight">
-            Welcome to{' '}
+            {' '}
             <span className="mars-text-gradient">MARS</span>
           </h1>
 
@@ -42,10 +45,10 @@ export default function Home() {
               Browse Products
             </Link>
             <Link 
-              href="/auth/register"
+              href={user ? "/profile" : "/auth/register"}
               className="px-8 py-3.5 bg-transparent text-[#E85D26] font-semibold rounded-lg border-2 border-[#E85D26] hover:bg-[#E85D26]/10 transition-all duration-200 text-lg"
             >
-              Start Selling
+              {user ? "My Account" : "Start Selling"}
             </Link>
           </div>
         </div>
@@ -146,16 +149,16 @@ export default function Home() {
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Ready to get started?
+            {user ? "Welcome back!" : "Ready to get started?"}
           </h2>
           <p className="text-xl text-white/80 mb-8">
-            Join thousands of satisfied buyers and sellers on MARS today.
+            {user ? "Explore new products and great deals on MARS." : "Join thousands of satisfied buyers and sellers on MARS today."}
           </p>
           <Link 
-            href="/auth/register"
+            href={user ? "/products" : "/auth/register"}
             className="inline-block px-10 py-4 bg-[#0A0A0A] text-[#E85D26] font-bold rounded-lg hover:bg-[#111111] transition-all duration-200 text-lg shadow-2xl"
           >
-            Create an Account
+            {user ? "Browse Products" : "Create an Account"}
           </Link>
         </div>
       </section>

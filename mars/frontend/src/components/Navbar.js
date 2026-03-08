@@ -56,8 +56,19 @@ export default function Navbar() {
               <>
                 <Link
                   href="/profile"
-                  className="text-sm text-gray-300 hover:text-[#E85D26] transition-colors"
+                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-[#E85D26] transition-colors"
                 >
+                  {user.profile_picture ? (
+                    <img
+                      src={user.profile_picture}
+                      alt=""
+                      className="w-7 h-7 rounded-full object-cover border border-[#2A2A2A]"
+                    />
+                  ) : (
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#E85D26] to-[#F59E0B] flex items-center justify-center text-xs font-bold text-white">
+                      {(user.first_name || user.username || '?')[0].toUpperCase()}
+                    </span>
+                  )}
                   <span className="text-[#E85D26] font-medium">{user.first_name || user.username}</span>
                 </Link>
                 {(user.role === 'seller' || user.role === 'admin') && (

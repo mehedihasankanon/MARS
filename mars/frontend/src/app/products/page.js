@@ -1,56 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
 
 export default function ProductsPage() {
 
-  const [products, setProducts] = useState([]);           
-  const [filteredProducts, setFilteredProducts] = useState([]); 
-  const [searchQuery, setSearchQuery] = useState('');      
-  const [selectedCategory, setSelectedCategory] = useState('All'); 
-  const [categories, setCategories] = useState([]);        
-  const [loading, setLoading] = useState(true);            
-  const [error, setError] = useState('');                  
+  const [products, setProducts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        const res = await api.get('/products');
-        const data = res.data;
-
-        setProducts(data);
-        setFilteredProducts(data);
-
-        const uniqueCategories = [...new Set(data.map(p => p.category_name))];
-        setCategories(uniqueCategories);
-      } catch (err) {
-        console.error('Failed to fetch products:', err);
-        setError('Failed to load products. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
+    api.get('/categories').then(res => {
+      setCategories(res.data);
+    }).catch(() => {});
   }, []);
 
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams();
+      if (selectedCategory) params.append('category', selectedCategory);
+      if (sortBy) params.append('sort', sortBy);
+      if (searchQuery.trim()) params.append('search', searchQuery.trim());
+
+      const res = await api.get(`/products?${params.toString()}`);
+      setProducts(res.data);
+    } catch (err) {
+      console.error('Failed to fetch products:', err);
+      setError('Failed to load products. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory, sortBy, searchQuery]);
+
   useEffect(() => {
-    let result = products;
-
-    if (selectedCategory !== 'All') {
-      result = result.filter(p => p.category_name === selectedCategory);
-    }
-
-    if (searchQuery.trim()) {
-      result = result.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    setFilteredProducts(result);
-  }, [searchQuery, selectedCategory, products]);
+    const debounce = setTimeout(fetchProducts, 300);
+    return () => clearTimeout(debounce);
+  }, [fetchProducts]);
 
   if (loading) {
     return (
@@ -100,7 +92,7 @@ export default function ProductsPage() {
             Browse <span className="text-[#E85D26]">Products</span>
           </h1>
           <p className="text-gray-400">
-            {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} available
+            {products.length} product{products.length !== 1 ? 's' : ''} available
           </p>
         </div>
 
@@ -125,14 +117,26 @@ export default function ProductsPage() {
             onChange={(e) => setSelectedCategory(e.target.value)}
             className="px-4 py-3 bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26] focus:border-[#E85D26] transition-colors cursor-pointer"
           >
-            <option value="All">All Categories</option>
+            <option value="">All Categories</option>
             {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
+              <option key={cat.category_id} value={cat.category_id}>{cat.name}</option>
             ))}
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-4 py-3 bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26] focus:border-[#E85D26] transition-colors cursor-pointer"
+          >
+            <option value="newest">Newest First</option>
+            <option value="price_asc">Price: Low to High</option>
+            <option value="price_desc">Price: High to Low</option>
+            <option value="popularity">Most Popular</option>
+            <option value="rating">Highest Rated</option>
           </select>
         </div>
 
-        {filteredProducts.length === 0 ? (
+        {products.length === 0 && !loading ? (
 
           <div className="text-center py-20">
             <p className="text-gray-500 text-lg mb-2">No products found</p>
@@ -142,7 +146,7 @@ export default function ProductsPage() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map(product => (
+            {products.map(product => (
 
               <Link
                 key={product.product_id}
@@ -150,8 +154,16 @@ export default function ProductsPage() {
                 className="group bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden hover:border-[#E85D26]/40 transition-all duration-300 hover:shadow-lg hover:shadow-[#E85D26]/5"
               >
 
-                <div className="w-full h-48 bg-gradient-to-br from-[#1A1A1A] to-[#0D0D0D] flex items-center justify-center">
-                  <span className="text-5xl opacity-30"></span>
+                <div className="w-full h-48 bg-gradient-to-br from-[#1A1A1A] to-[#0D0D0D] flex items-center justify-center overflow-hidden">
+                  {product.images && product.images.length > 0 && product.images[0].image_url ? (
+                    <img
+                      src={product.images[0].image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-5xl opacity-30">📦</span>
+                  )}
                 </div>
 
                 <div className="p-5">
@@ -178,8 +190,8 @@ export default function ProductsPage() {
 
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                       product.stock_quantity > 0
-                        ? 'text-green-400 bg-green-400/10'   // In stock = green
-                        : 'text-red-400 bg-red-400/10'       // Out of stock = red
+                        ? 'text-green-400 bg-green-400/10'
+                        : 'text-red-400 bg-red-400/10'
                     }`}>
                       {product.stock_quantity > 0 ? `${product.stock_quantity} in stock` : 'Out of stock'}
                     </span>
@@ -187,7 +199,23 @@ export default function ProductsPage() {
 
                   <p className="text-gray-600 text-xs mt-3">
                     Sold by <span className="text-gray-400">{product.seller_name}</span>
+                    {product.seller_rating > 0 && (
+                      <span className="ml-2 text-yellow-400">★ {parseFloat(product.seller_rating).toFixed(1)}</span>
+                    )}
                   </p>
+
+                  {parseFloat(product.avg_rating) > 0 && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <div className="flex">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <svg key={star} className={`w-3.5 h-3.5 ${star <= Math.round(parseFloat(product.avg_rating)) ? 'text-yellow-400' : 'text-gray-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                      </div>
+                      <span className="text-xs text-gray-500">({product.review_count})</span>
+                    </div>
+                  )}
                 </div>
               </Link>
             ))}

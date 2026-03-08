@@ -4,12 +4,12 @@ const router = express.Router();
 const cartController = require('../controllers/cartController');
 const { authenticateToken, authorizeRoles } = require('../middleware/jwt');
 
-router.get('/', authenticateToken, authorizeRoles("customer"), cartController.getCartItems);
+router.get('/', authenticateToken, authorizeRoles("customer", "seller"), cartController.getCartItems);
 
-router.post("/items", authenticateToken, authorizeRoles("customer"), cartController.addItemToCart);
+router.post("/items", authenticateToken, authorizeRoles("customer", "seller"), cartController.addItemToCart);
 
-router.delete("/items/:itemId", authenticateToken, authorizeRoles("customer"), cartController.removeItemFromCart);
+router.delete("/items/:itemId", authenticateToken, authorizeRoles("customer", "seller"), cartController.removeItemFromCart);
 
-router.put("/items/:productId", authenticateToken, authorizeRoles("customer"), cartController.updateCartItem);
+router.put("/items/:product_id", authenticateToken, authorizeRoles("customer", "seller"), cartController.updateCartItem);
 
 module.exports = router;

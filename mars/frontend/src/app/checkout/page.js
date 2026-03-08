@@ -25,6 +25,7 @@ export default function CheckoutPage() {
   const [deliveryFee] = useState(5.99);  
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
 
   useEffect(() => {
     if (authLoading) return;
@@ -125,6 +126,7 @@ export default function CheckoutPage() {
         Items,
         addressId,
         deliveryFee,
+        paymentMethod,
       });
 
       router.push('/orders');
@@ -332,6 +334,34 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">
+                Payment Method
+              </h2>
+              <div className="space-y-3">
+                {['Cash on Delivery', 'Credit Card', 'Debit Card', 'Mobile Banking'].map((method) => (
+                  <label
+                    key={method}
+                    className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
+                      paymentMethod === method
+                        ? 'border-[#E85D26] bg-[#E85D26]/5'
+                        : 'border-[#2A2A2A] hover:border-[#3A3A3A]'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={method}
+                      checked={paymentMethod === method}
+                      onChange={() => setPaymentMethod(method)}
+                      className="accent-[#E85D26]"
+                    />
+                    <span className="text-gray-200 text-sm">{method}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
 

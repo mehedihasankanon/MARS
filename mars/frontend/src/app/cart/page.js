@@ -183,6 +183,13 @@ export default function CartPage() {
                     <p className="text-[#E85D26] font-semibold mt-1">
                       ${parseFloat(item.product?.unit_price || 0).toFixed(2)} each
                     </p>
+                    {item.product?.stock_quantity != null && (
+                      <p className="text-xs mt-1 text-gray-500">
+                        {item.product.stock_quantity - item.quantity > 0
+                          ? <span className="text-green-400">You can add {item.product.stock_quantity - item.quantity} more</span>
+                          : <span className="text-amber-400">Max quantity reached</span>}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex items-center border border-[#2A2A2A] rounded-lg overflow-hidden">
@@ -198,7 +205,7 @@ export default function CartPage() {
                     </span>
                     <button
                       onClick={() => handleUpdateQuantity(item.product_id, item.quantity + 1)}
-                      disabled={updating === item.product_id}
+                      disabled={updating === item.product_id || item.quantity >= (item.product?.stock_quantity || Infinity)}
                       className="px-3 py-2 text-gray-400 hover:text-white hover:bg-[#1A1A1A] transition-colors disabled:opacity-30"
                     >
                       +

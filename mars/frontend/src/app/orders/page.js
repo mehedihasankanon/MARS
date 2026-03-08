@@ -172,6 +172,18 @@ export default function OrdersPage() {
                       <span>Delivery: ${parseFloat(order.delivery_fee).toFixed(2)} · </span>
                     )}
                     <span>{order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''}</span>
+                    {order.payment_method && (
+                      <span className="block mt-1">
+                        Payment: {order.payment_method}
+                        <span className={`ml-2 inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          order.payment_status === 'Completed' ? 'text-green-400 bg-green-400/10' :
+                          order.payment_status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10' :
+                          'text-gray-400 bg-gray-400/10'
+                        }`}>
+                          {order.payment_status}
+                        </span>
+                      </span>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500">Total</p>

@@ -62,8 +62,23 @@ export function AuthProvider({ children }) {
     router.push("/");
   };
 
+  const becomeSeller = async (shopName) => {
+    const res = await api.post("/users/become-seller", { shopName });
+    const { token: newToken, role } = res.data;
+
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
+    setUser((prev) => ({ ...prev, role }));
+
+    return res.data;
+  };
+
+  const updateUser = (fields) => {
+    setUser((prev) => ({ ...prev, ...fields }));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, logout, becomeSeller, updateUser, loading }}>
       {children}
     </AuthContext.Provider>
   );
