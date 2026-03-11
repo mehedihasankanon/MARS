@@ -19,6 +19,9 @@ const questionRoutes = require("./routes/questionRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
 const couponRoutes = require("./routes/couponRoutes");
 const offerRoutes = require("./routes/offerRoutes");
+const varietyRoutes = require("./routes/varietyRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const shipmentRoutes = require("./routes/shipmentRoutes");
 
 const app = express();
 
@@ -37,6 +40,9 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/varieties", varietyRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/shipments", shipmentRoutes);
 
 app.get("/api/health", async (req, res) => {
   try {

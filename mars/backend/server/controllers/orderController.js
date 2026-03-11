@@ -183,16 +183,11 @@ exports.placeOrder = async (req, res) => {
 
     const totalAmount = itemsTotal + (deliveryFee || 0);
 
-    // ── 3. Calculate the discounted price ──────────────────────────
-    // The discount applies to the items total only — delivery fee is
-    // not discountable. Discounted_Net_Price is what the customer
-    // actually pays.
     const discountedNetPrice =
       discountPercent > 0
         ? itemsTotal * (1 - discountPercent / 100) + (deliveryFee || 0)
         : totalAmount;
 
-    // ── 4. Create the order ────────────────────────────────────────
     const orderResult = await client.query(
       `INSERT INTO Orders (Customer_ID, Coupon_ID, Delivery_Fee, Total_Amount, Discounted_Net_Price, Order_Status)
        VALUES ($1, $2, $3, $4, $5, 'Pending')
@@ -208,10 +203,8 @@ exports.placeOrder = async (req, res) => {
 
     const order = orderResult.rows[0];
 
-    // ── 5. Insert order items ──────────────────────────────────────
-    // Net_Price on each line item is the RAW price (qty × unit_price),
-    // NOT discounted. The discount lives on the Orders row only, so
     // sellers see the true value of each item they sold.
+    // discounted price is in the Orders table only
     for (const item of Items) {
       const productResult = await client.query(
         "SELECT Unit_Price FROM Products WHERE Product_ID = $1",
@@ -225,7 +218,6 @@ exports.placeOrder = async (req, res) => {
         [order.order_id, item.product_id, item.quantity, netPrice],
       );
 
-      // Decrement stock — we already validated availability above.
       await client.query(
         "UPDATE Products SET Stock_Quantity = Stock_Quantity - $1 WHERE Product_ID = $2",
         [item.quantity, item.product_id],
