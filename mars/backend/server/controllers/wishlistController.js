@@ -30,10 +30,10 @@ exports.addItemToWishlist = async (req, res) => {
     const customer_id = req.user.userId;
     const itemId = req.params.itemid;
 
-    await client.query(
-      `INSERT INTO Customers (Customer_ID) VALUES ($1) ON CONFLICT (Customer_ID) DO NOTHING`,
-      [customer_id],
-    );
+    // await client.query(
+    //   `INSERT INTO Customers (Customer_ID) VALUES ($1) ON CONFLICT (Customer_ID) DO NOTHING`,
+    //   [customer_id],
+    // );
 
     const productResult = await client.query(
       `SELECT Product_ID, Seller_ID FROM Products WHERE Product_ID = $1`,

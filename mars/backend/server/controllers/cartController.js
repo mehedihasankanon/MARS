@@ -32,10 +32,10 @@ exports.addItemToCart = async (req, res) => {
     const customer_id = req.user.userId;
     const { product_id, quantity } = req.body;
 
-    await client.query(
-      `INSERT INTO Customers (Customer_ID) VALUES ($1) ON CONFLICT (Customer_ID) DO NOTHING`,
-      [customer_id],
-    );
+    // await client.query(
+    //   `INSERT INTO Customers (Customer_ID) VALUES ($1) ON CONFLICT (Customer_ID) DO NOTHING`,
+    //   [customer_id],
+    // );
 
     const productResult = await client.query(
       `SELECT Unit_Price, Stock_Quantity, Seller_ID FROM Products WHERE Product_ID = $1`,

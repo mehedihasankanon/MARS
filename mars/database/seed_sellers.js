@@ -1,5 +1,5 @@
 const path = require("path");
-require("dotenv").config({ path: path.resolve(__dirname, "../frontend/.env.local") });
+require("dotenv").config({ path: path.resolve(__dirname, "../backend/.env") });
 const bcrypt = require("bcryptjs");
 const pool = require("./db.js");
 

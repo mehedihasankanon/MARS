@@ -17,6 +17,8 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const wishlistRoutes = require("./routes/wishlistRoutes");
+const couponRoutes = require("./routes/couponRoutes");
+const offerRoutes = require("./routes/offerRoutes");
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/coupons", couponRoutes);
+app.use("/api/offers", offerRoutes);
 
 app.get("/api/health", async (req, res) => {
   try {

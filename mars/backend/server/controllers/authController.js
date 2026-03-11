@@ -51,11 +51,12 @@ exports.registerUser = async (req, res) => {
       { expiresIn: "7d" },
     );
 
-    res.status(201).json({
-      message: "User registered successfully",
-      token,
-      user,
-    });
+    // extract the password, set it into a dummy value,
+    // and set the remaining into the safeUser object to be sent in the response
+    // we could alternately write `password: ignored` and be done with it 
+    const { password: _, ...safeUser } = user;
+    res.status(201).json({ message: "Login successful", token, user: safeUser, role });
+
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
@@ -109,9 +110,10 @@ exports.loginUser = async (req, res) => {
       }
     }
 
-    await client.query("UPDATE Users SET Last_Login = NOW() WHERE User_ID = $1", [
-      user.user_id,
-    ]);
+    await client.query(
+      "UPDATE Users SET Last_Login = NOW() WHERE User_ID = $1",
+      [user.user_id],
+    );
 
     await client.query("COMMIT");
 
@@ -119,12 +121,8 @@ exports.loginUser = async (req, res) => {
       expiresIn: "7d",
     });
 
-    res.json({
-      message: "Login successful",
-      token,
-      user,
-      role,
-    });
+    const { password: _, ...safeUser } = user;
+    res.status(201).json({ message: "Login successful", token, user: safeUser, role });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
