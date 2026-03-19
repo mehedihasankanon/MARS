@@ -27,6 +27,41 @@ export default function ProfilePage() {
   const [addressForm, setAddressForm] = useState({ house: '', streetRoad: '', city: '', zipCode: '', addressType: 'Shipping' });
   const [addressError, setAddressError] = useState('');
 
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await api.put('/auth/change-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+      setPasswordSuccess('Password updated successfully');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      setPasswordError(err.response?.data?.error || 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth/login');
@@ -281,6 +316,54 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-8">
+          <h2 className="text-lg font-bold text-white mb-6">Change Password</h2>
+          
+          {passwordError && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-sm">
+              {passwordError}
+            </div>
+          )}
+          {passwordSuccess && (
+            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 text-green-500 rounded-lg text-sm">
+              {passwordSuccess}
+            </div>
+          )}
+
+          <form onSubmit={handlePasswordChange} className="space-y-4 max-w-sm">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Current Password</label>
+              <input 
+                type="password" required value={passwordForm.currentPassword}
+                onChange={e => setPasswordForm(prev => ({...prev, currentPassword: e.target.value}))}
+                className="w-full px-4 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:border-[#E85D26]" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">New Password</label>
+              <input 
+                type="password" required value={passwordForm.newPassword}
+                onChange={e => setPasswordForm(prev => ({...prev, newPassword: e.target.value}))}
+                className="w-full px-4 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:border-[#E85D26]" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Confirm New Password</label>
+              <input 
+                type="password" required value={passwordForm.confirmPassword}
+                onChange={e => setPasswordForm(prev => ({...prev, confirmPassword: e.target.value}))}
+                className="w-full px-4 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:border-[#E85D26]" 
+              />
+            </div>
+            <button 
+              type="submit" disabled={passwordLoading}
+              className="px-4 py-2 bg-[#E85D26] text-white font-medium rounded-lg hover:bg-[#D14F1E] disabled:opacity-50 transition-colors"
+            >
+              {passwordLoading ? 'Updating...' : 'Update Password'}
+            </button>
+          </form>
         </div>
 
         <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-8">

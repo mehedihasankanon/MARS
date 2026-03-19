@@ -133,6 +133,12 @@ exports.validateCoupon = async (req, res) => {
       return res.status(400).json({ error: "coupon_id is required" });
     }
 
+    // Prevent PostgreSQL UUID cast error on random text inputs
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(coupon_id)) {
+      return res.status(404).json({ error: "Incorrect or invalid coupon code" });
+    }
+
     const result = await pool.query(
       "SELECT Coupon_ID, Discount_Percent, Expiry_Date FROM Coupons WHERE Coupon_ID = $1",
       [coupon_id],

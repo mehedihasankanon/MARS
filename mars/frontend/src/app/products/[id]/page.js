@@ -8,17 +8,20 @@ import { useAuth } from '@/context/AuthContext';
 
 export default function ProductDetailPage() {
 
-  const params = useParams();         
-  const router = useRouter();         
-  const { user } = useAuth();         
+  const params = useParams();
+  const router = useRouter();
+  const { user } = useAuth();
 
-  const [product, setProduct] = useState(null);       
-  const [quantity, setQuantity] = useState(1);         
-  const [loading, setLoading] = useState(true);        
-  const [addingToCart, setAddingToCart] = useState(false); 
+  const [product, setProduct] = useState(null);
+  const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState({ type: '', text: '' });
   const [selectedImage, setSelectedImage] = useState(0);
   const autoSlideRef = useRef(null);
+
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [wishlistToggling, setWishlistToggling] = useState(false);
 
   const [reviews, setReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
@@ -53,9 +56,43 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!params.id) return;
-    api.get(`/reviews/${params.id}`).then(res => setReviews(res.data)).catch(() => {});
-    api.get(`/questions/${params.id}`).then(res => setQuestions(res.data)).catch(() => {});
+    api.get(`/reviews/${params.id}`).then(res => setReviews(res.data)).catch(() => { });
+    api.get(`/questions/${params.id}`).then(res => setQuestions(res.data)).catch(() => { });
   }, [params.id]);
+
+  useEffect(() => {
+    if (user && params.id) {
+      api.get('/wishlist').then(res => {
+        const ids = res.data.map(item => item.product_id);
+        setIsWishlisted(ids.includes(params.id));
+      }).catch(() => { });
+    }
+  }, [user, params.id]);
+
+  const handleToggleWishlist = async () => {
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+    const isOwnProduct = user && product?.seller_name === user.username;
+    if (isOwnProduct) return;
+
+    setWishlistToggling(true);
+    try {
+      if (isWishlisted) {
+        await api.delete(`/wishlist/items/${params.id}`);
+        setIsWishlisted(false);
+      } else {
+        await api.post(`/wishlist/items/${params.id}`);
+        setIsWishlisted(true);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || err.response?.data?.error || "Failed to update wishlist");
+    } finally {
+      setWishlistToggling(false);
+    }
+  };
 
   const imageCount = product?.images?.length || 0;
 
@@ -288,11 +325,10 @@ export default function ProductDetailPage() {
                           <button
                             key={idx}
                             onClick={() => goToSlide(idx)}
-                            className={`w-2 h-2 rounded-full transition-all ${
-                              selectedImage === idx
+                            className={`w-2 h-2 rounded-full transition-all ${selectedImage === idx
                                 ? 'bg-[#E85D26] w-4'
                                 : 'bg-white/40 hover:bg-white/60'
-                            }`}
+                              }`}
                           />
                         ))}
                       </div>
@@ -312,9 +348,8 @@ export default function ProductDetailPage() {
                   <button
                     key={img.image_id}
                     onClick={() => goToSlide(idx)}
-                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
-                      selectedImage === idx ? 'border-[#E85D26]' : 'border-[#2A2A2A] hover:border-gray-500'
-                    }`}
+                    className={`w-16 h-16 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${selectedImage === idx ? 'border-[#E85D26]' : 'border-[#2A2A2A] hover:border-gray-500'
+                      }`}
                   >
                     <img src={img.image_url} alt="" className="w-full h-full object-cover" />
                   </button>
@@ -414,6 +449,16 @@ export default function ProductDetailPage() {
                 >
                   {addingToCart ? 'Adding...' : 'Add to Cart'}
                 </button>
+                <button
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistToggling}
+                  className={`p-3 rounded-lg border-2 transition-colors flex items-center justify-center disabled:opacity-50 ${isWishlisted ? 'border-[#E85D26] bg-[#E85D26]/10 text-[#E85D26]' : 'border-[#2A2A2A] bg-[#111111] text-gray-400 hover:border-gray-500 hover:text-white'}`}
+                  title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                >
+                  <svg className={`w-6 h-6 ${isWishlisted ? 'fill-current' : 'fill-transparent'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isWishlisted ? "0" : "2"}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </button>
               </div>
             )}
 
@@ -430,11 +475,10 @@ export default function ProductDetailPage() {
             )}
 
             {cartMessage.text && (
-              <div className={`mt-3 px-4 py-3 rounded-lg text-sm ${
-                cartMessage.type === 'success'
+              <div className={`mt-3 px-4 py-3 rounded-lg text-sm ${cartMessage.type === 'success'
                   ? 'bg-green-900/20 border border-green-800 text-green-400'
                   : 'bg-red-900/20 border border-red-800 text-red-400'
-              }`}>
+                }`}>
                 {cartMessage.text}
               </div>
             )}
@@ -445,18 +489,16 @@ export default function ProductDetailPage() {
           <div className="flex border-b border-[#2A2A2A] mb-6">
             <button
               onClick={() => setActiveTab('reviews')}
-              className={`px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeTab === 'reviews' ? 'text-[#E85D26]' : 'text-gray-400 hover:text-gray-200'
-              }`}
+              className={`px-6 py-3 text-sm font-medium transition-colors relative ${activeTab === 'reviews' ? 'text-[#E85D26]' : 'text-gray-400 hover:text-gray-200'
+                }`}
             >
               Reviews ({reviews.length})
               {activeTab === 'reviews' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E85D26]" />}
             </button>
             <button
               onClick={() => setActiveTab('qa')}
-              className={`px-6 py-3 text-sm font-medium transition-colors relative ${
-                activeTab === 'qa' ? 'text-[#E85D26]' : 'text-gray-400 hover:text-gray-200'
-              }`}
+              className={`px-6 py-3 text-sm font-medium transition-colors relative ${activeTab === 'qa' ? 'text-[#E85D26]' : 'text-gray-400 hover:text-gray-200'
+                }`}
             >
               Questions & Answers ({questions.length})
               {activeTab === 'qa' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E85D26]" />}

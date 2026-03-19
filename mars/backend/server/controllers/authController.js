@@ -131,3 +131,39 @@ exports.loginUser = async (req, res) => {
     client.release();
   }
 };
+
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const userId = req.user.userId;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userResult = await client.query("SELECT password FROM Users WHERE User_ID = $1", [userId]);
+    if (userResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const passwordMatch = await bcrypt.compare(currentPassword, userResult.rows[0].password);
+    if (!passwordMatch) {
+      await client.query("ROLLBACK");
+      return res.status(401).json({ error: "Incorrect current password" });
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    await client.query("UPDATE Users SET password = $1 WHERE User_ID = $2", [hashedPassword, userId]);
+
+    await client.query("COMMIT");
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};

@@ -22,6 +22,9 @@ const offerRoutes = require("./routes/offerRoutes");
 const varietyRoutes = require("./routes/varietyRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const shipmentRoutes = require("./routes/shipmentRoutes");
+const returnRoutes = require("./routes/returnRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
 
 const app = express();
 
@@ -43,6 +46,9 @@ app.use("/api/offers", offerRoutes);
 app.use("/api/varieties", varietyRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/shipments", shipmentRoutes);
+app.use("/api/returns", returnRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.get("/api/health", async (req, res) => {
   try {

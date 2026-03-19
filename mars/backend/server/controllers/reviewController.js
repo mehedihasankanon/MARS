@@ -5,7 +5,12 @@ exports.getProductReviews = async (req, res) => {
     const { productId } = req.params;
     const result = await pool.query(
       `SELECT r.Review_ID as review_id, r.Comment_Body as comment, r.Rating as rating,
-              r.Review_Date as review_date, u.Username as username, u.Profile_Picture as profile_picture
+              r.Review_Date as review_date, u.Username as username, u.Profile_Picture as profile_picture,
+              EXISTS (
+                  SELECT 1 FROM Order_Items oi
+                  JOIN Orders o ON oi.Order_ID = o.Order_ID
+                  WHERE o.Customer_ID = r.Customer_ID AND oi.Product_ID = r.Product_ID
+              ) as verified
        FROM Reviews r
        JOIN Users u ON r.Customer_ID = u.User_ID
        WHERE r.Product_ID = $1
@@ -33,26 +38,29 @@ exports.createReview = async (req, res) => {
       return res.status(400).json({ error: "Rating must be between 1 and 5" });
     }
 
+    const checkDuplicate = await client.query(
+      "SELECT 1 FROM Reviews WHERE Customer_ID = $1 AND Product_ID = $2",
+      [customerId, productId]
+    );
+
+    if (checkDuplicate.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ error: "You have already reviewed this product" });
+    }
+
     const result = await client.query(
-      "CALL submit_review($1, $2, $3, $4, NULL)",
+      "INSERT INTO Reviews (Customer_ID, Product_ID, Comment_Body, Rating) VALUES ($1, $2, $3, $4) RETURNING Review_ID",
       [customerId, productId, comment || null, parseInt(rating)]
     );
 
     await client.query("COMMIT");
     res.status(201).json({
       message: "Review submitted",
-      review_id: result.rows[0].p_review_id,
+      review_id: result.rows[0].review_id,
     });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error creating review:", error);
-    const msg = error.message || "";
-    if (msg.includes("already reviewed")) {
-      return res.status(409).json({ error: "You have already reviewed this product" });
-    }
-    if (msg.includes("purchased")) {
-      return res.status(403).json({ error: "You can only review products you have purchased" });
-    }
     res.status(500).json({ error: "Internal Server Error" });
   } finally {
     client.release();

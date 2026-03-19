@@ -35,11 +35,84 @@ export default function DashboardPage() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState(null);
 
+  const [sellerReturns, setSellerReturns] = useState([]);
+  const [loadingReturns, setLoadingReturns] = useState(false);
+  const [approvingReturn, setApprovingReturn] = useState(null);
+
+
   const [imageModalProduct, setImageModalProduct] = useState(null);
   const [imageModalImages, setImageModalImages] = useState([]);
   const [imageModalLoading, setImageModalLoading] = useState(false);
   const [imageModalUploading, setImageModalUploading] = useState(false);
   const [imageModalDeleting, setImageModalDeleting] = useState(null);
+
+  const [editModalProduct, setEditModalProduct] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    description: '',
+    unitPrice: '',
+    stockQuantity: '',
+    conditionState: '',
+    categoryId: '',
+  });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editFormError, setEditFormError] = useState('');
+  const [editFormSuccess, setEditFormSuccess] = useState('');
+
+  const openEditModal = (product) => {
+    setEditFormError('');
+    setEditFormSuccess('');
+    setEditModalProduct(product);
+    setEditForm({
+      name: product.name || '',
+      description: product.description || '',
+      unitPrice: product.unit_price || '',
+      stockQuantity: product.stock_quantity || '',
+      conditionState: product.condition_state || 'New',
+      categoryId: product.category_id || '',
+    });
+  };
+
+  const closeEditModal = () => {
+    setEditModalProduct(null);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setEditFormError('');
+    setEditFormSuccess('');
+    setEditSubmitting(true);
+
+    if (!editForm.name || !editForm.unitPrice || editForm.stockQuantity === '') {
+      setEditFormError('Name, Price, and Stock are required');
+      setEditSubmitting(false);
+      return;
+    }
+
+    try {
+      const res = await api.put(`/products/${editModalProduct.product_id}`, editForm);
+      setEditFormSuccess('Product updated successfully!');
+      
+      const updatedProduct = {
+        ...editModalProduct,
+        ...res.data,
+        unit_price: res.data.unit_price,
+        stock_quantity: res.data.stock_quantity,
+        condition_state: res.data.condition_state,
+        category_name: categories.find(c => c.id === editForm.categoryId)?.name || editModalProduct.category_name
+      };
+      
+      setAllProducts(prev => prev.map(p => p.product_id === editModalProduct.product_id ? updatedProduct : p));
+      setMyProducts(prev => prev.map(p => p.product_id === editModalProduct.product_id ? updatedProduct : p));
+      
+      setTimeout(() => closeEditModal(), 1500);
+    } catch (err) {
+      console.error(err);
+      setEditFormError(err.response?.data?.error || 'Failed to update product');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -112,6 +185,37 @@ export default function DashboardPage() {
 
     fetchSellerOrders();
   }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user || activeTab !== 'returns') return;
+
+    const fetchSellerReturns = async () => {
+      setLoadingReturns(true);
+      try {
+        const res = await api.get('/returns/seller');
+        setSellerReturns(res.data);
+      } catch (err) {
+        console.error('Failed to fetch returns:', err);
+      } finally {
+        setLoadingReturns(false);
+      }
+    };
+
+    fetchSellerReturns();
+  }, [user, activeTab]);
+
+  const handleApproveReturn = async (returnId) => {
+    setApprovingReturn(returnId);
+    try {
+      await api.post(`/returns/approve/${returnId}`);
+      setSellerReturns(prev => prev.map(r => r.return_id === returnId ? { ...r, status: 'Approved' } : r));
+    } catch (err) {
+      console.error('Failed to approve return:', err);
+    } finally {
+      setApprovingReturn(null);
+    }
+  };
+
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     setUpdatingOrder(orderId);
@@ -298,6 +402,26 @@ export default function DashboardPage() {
           </button>
 
           <button
+            onClick={() => setActiveTab('returns')}
+            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'returns'
+                ? 'text-[#E85D26]'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Returns
+            {sellerReturns.filter(r => r.status === 'Pending').length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-red-500/20 text-red-400 rounded-full">
+                {sellerReturns.filter(r => r.status === 'Pending').length}
+              </span>
+            )}
+            {activeTab === 'returns' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E85D26]" />
+            )}
+          </button>
+
+
+          <button
             onClick={() => setActiveTab('add')}
             className={`px-6 py-3 text-sm font-medium transition-colors relative ${
               activeTab === 'add'
@@ -311,6 +435,7 @@ export default function DashboardPage() {
             )}
           </button>
         </div>
+
 
         {activeTab === 'products' && (
           <>
@@ -403,11 +528,14 @@ export default function DashboardPage() {
                       {product.condition_state && (
                         <span>{product.condition_state}</span>
                       )}
-                      <span>
-                        {product.adding_date
-                          ? new Date(product.adding_date).toLocaleDateString()
-                          : ''}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <button onClick={(e) => { e.preventDefault(); openEditModal(product); }} className="text-[#E85D26] hover:text-[#D14F1E] font-medium transition-colors">Edit</button>
+                        <span>
+                          {product.adding_date
+                            ? new Date(product.adding_date).toLocaleDateString()
+                            : ''}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -517,6 +645,85 @@ export default function DashboardPage() {
                       <div className="mt-4 pt-3 border-t border-[#1A1A1A] flex justify-end">
                         <p className="text-lg font-bold text-white">
                           Total: <span className="text-[#F59E0B]">${parseFloat(order.total_amount).toFixed(2)}</span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'returns' && (
+          <>
+            {loadingReturns ? (
+              <div className="space-y-4">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6 animate-pulse">
+                    <div className="h-5 bg-[#1A1A1A] rounded w-1/3 mb-3" />
+                    <div className="h-4 bg-[#1A1A1A] rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : sellerReturns.length === 0 ? (
+              <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
+                <span className="text-6xl block mb-4">✅</span>
+                <h2 className="text-2xl font-bold text-white mb-2">No return requests</h2>
+                <p className="text-gray-400">When customers request returns on your products, they will appear here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {sellerReturns.map((ret) => {
+                  const statusColors = {
+                    Pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+                    Approved: 'bg-green-500/10 text-green-400 border-green-500/30',
+                    Rejected: 'bg-red-500/10 text-red-400 border-red-500/30',
+                  };
+                  const statusClass = statusColors[ret.status] || statusColors.Pending;
+
+                  return (
+                    <div key={ret.return_id} className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6 hover:border-[#E85D26]/30 transition-all">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Return #{ret.return_id.slice(0, 8)}...</p>
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            {new Date(ret.return_date).toLocaleDateString('en-US', {
+                              year: 'numeric', month: 'long', day: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${statusClass}`}>
+                            {ret.status}
+                          </span>
+                          {ret.status === 'Pending' && (
+                            <button
+                              onClick={() => handleApproveReturn(ret.return_id)}
+                              disabled={approvingReturn === ret.return_id}
+                              className="px-4 py-1.5 text-xs bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              {approvingReturn === ret.return_id ? 'Approving...' : 'Approve Return'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-3 text-sm">
+                        <span className="text-gray-400">Customer:</span>
+                        <span className="text-white font-medium">{ret.customer_name}</span>
+                        <span className="ml-3 text-gray-500">• Order #{ret.order_id.slice(0, 8)}...</span>
+                      </div>
+
+                      <div className="bg-[#0A0A0A] rounded-lg p-4 mb-3">
+                        <p className="text-sm text-gray-400 mb-1">Reason</p>
+                        <p className="text-white text-sm">{ret.reason}</p>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <p className="text-sm font-medium text-[#F59E0B]">
+                          Refund: ${parseFloat(ret.refund_amount).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -794,6 +1001,111 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+        {/* Edit Product Modal */}
+        {editModalProduct && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={closeEditModal}>
+            <div
+              className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold text-white">
+                  Edit Product
+                </h3>
+                <button onClick={closeEditModal} className="text-gray-400 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {editFormError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-sm">
+                  {editFormError}
+                </div>
+              )}
+
+              {editFormSuccess && (
+                <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 text-green-500 rounded-lg text-sm">
+                  {editFormSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Product Name *</label>
+                  <input 
+                    type="text" required value={editForm.name} 
+                    onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white" 
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Unit Price ($) *</label>
+                    <input 
+                      type="number" step="0.01" min="0" required value={editForm.unitPrice} 
+                      onChange={e => setEditForm(prev => ({ ...prev, unitPrice: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Stock Quantity *</label>
+                    <input 
+                      type="number" min="0" required value={editForm.stockQuantity} 
+                      onChange={e => setEditForm(prev => ({ ...prev, stockQuantity: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white" 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Category *</label>
+                    <select 
+                      required value={editForm.categoryId} 
+                      onChange={e => setEditForm(prev => ({ ...prev, categoryId: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white"
+                    >
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1.5">Condition *</label>
+                    <select 
+                      required value={editForm.conditionState} 
+                      onChange={e => setEditForm(prev => ({ ...prev, conditionState: e.target.value }))}
+                      className="w-full px-4 py-2.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white"
+                    >
+                      <option value="New">New</option>
+                      <option value="Used - Like New">Used - Like New</option>
+                      <option value="Used - Good">Used - Good</option>
+                      <option value="Used - Fair">Used - Fair</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1.5">Description</label>
+                  <textarea 
+                    rows="3" value={editForm.description} 
+                    onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white" 
+                  ></textarea>
+                </div>
+
+                <button 
+                  type="submit" disabled={editSubmitting}
+                  className="w-full py-3 bg-[#E85D26] text-white font-medium rounded-lg hover:bg-[#D14F1E]"
+                >
+                  {editSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

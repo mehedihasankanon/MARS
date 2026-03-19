@@ -25,85 +25,20 @@ exports.getCartItems = async (req, res) => {
 };
 
 exports.addItemToCart = async (req, res) => {
-  const client = await pool.connect();
   try {
-    await client.query("BEGIN");
-
     const customer_id = req.user.userId;
     const { product_id, quantity } = req.body;
 
-    // await client.query(
-    //   `INSERT INTO Customers (Customer_ID) VALUES ($1) ON CONFLICT (Customer_ID) DO NOTHING`,
-    //   [customer_id],
-    // );
-
-    const productResult = await client.query(
-      `SELECT Unit_Price, Stock_Quantity, Seller_ID FROM Products WHERE Product_ID = $1`,
-      [product_id],
+    await pool.query(
+      "SELECT mars.add_to_cart($1, $2, $3)",
+      [customer_id, product_id, quantity]
     );
 
-    if (!productResult.rows[0]) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ message: "Product not found" });
-    }
-
-    if (productResult.rows[0].seller_id === customer_id) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ message: "You cannot buy your own product" });
-    }
-
-    await client.query(
-      `INSERT INTO Carts (Customer_ID, Total_Amount)
-       VALUES ($1, 0)
-       ON CONFLICT (Customer_ID) DO NOTHING`,
-      [customer_id],
-    );
-
-    const cartResult = await client.query(
-      `SELECT Cart_ID FROM Carts WHERE Customer_ID = $1`,
-      [customer_id],
-    );
-
-    if (!cartResult.rows[0]) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ message: "Cart not found" });
-    }
-
-    const cart_id = cartResult.rows[0].cart_id;
-    const price = productResult.rows[0].unit_price;
-    const stockQuantity = productResult.rows[0].stock_quantity;
-
-    const existingItem = await client.query(
-      `SELECT Quantity FROM Cart_Items WHERE Cart_ID = $1 AND Product_ID = $2`,
-      [cart_id, product_id],
-    );
-    const currentQtyInCart = existingItem.rows[0] ? existingItem.rows[0].quantity : 0;
-
-    if (currentQtyInCart + quantity > stockQuantity) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        message: `Cannot add ${quantity} more. Only ${stockQuantity - currentQtyInCart} more available.`,
-      });
-    }
-
-    const net_price = price * quantity;
-
-    await client.query(
-      `INSERT INTO Cart_Items (Cart_ID, Product_ID, Quantity, Net_Price)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (Cart_ID, Product_ID) 
-       DO UPDATE SET Quantity = Cart_Items.Quantity + $3, Net_Price = Cart_Items.Net_Price + $4`,
-      [cart_id, product_id, quantity, net_price],
-    );
-
-    await client.query("COMMIT");
     res.status(201).json({ message: "Item added to cart" });
   } catch (err) {
-    await client.query("ROLLBACK");
     console.error("Error adding item to cart:", err);
-    res.status(500).json({ message: "Internal server error" });
-  } finally {
-    client.release();
+    // The DB function raises descriptive exceptions
+    res.status(400).json({ message: err.message || "Internal server error" });
   }
 };
 

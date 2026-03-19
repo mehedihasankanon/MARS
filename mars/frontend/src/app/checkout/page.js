@@ -27,6 +27,38 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash on Delivery');
 
+  const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [couponSuccess, setCouponSuccess] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+  const handleApplyCoupon = async (e) => {
+    e.preventDefault();
+    if (!couponCode.trim()) return;
+    
+    setCouponError('');
+    setCouponSuccess('');
+    setApplyingCoupon(true);
+    
+    try {
+      const res = await api.post('/coupons/validate', { coupon_id: couponCode.trim() });
+      setAppliedCoupon(res.data);
+      setCouponSuccess(`Applied! ${res.data.discount_percent}% off.`);
+      setCouponCode('');
+    } catch (err) {
+      setCouponError(err.response?.data?.error || 'Invalid coupon ID.');
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponSuccess('');
+    setCouponError('');
+  };
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -85,7 +117,8 @@ export default function CheckoutPage() {
     (sum, item) => sum + parseFloat(item.unit_price || 0) * item.quantity,
     0
   );
-  const total = subtotal + deliveryFee;
+  const discountAmount = appliedCoupon ? (subtotal * parseFloat(appliedCoupon.discount_percent)) / 100 : 0;
+  const total = subtotal - discountAmount + deliveryFee;
 
   const handlePlaceOrder = async () => {
     setError('');
@@ -125,6 +158,7 @@ export default function CheckoutPage() {
       await api.post('/orders', {
         Items,
         addressId,
+        couponId: appliedCoupon ? appliedCoupon.coupon_id : null,
         deliveryFee,
         paymentMethod,
       });
@@ -371,11 +405,50 @@ export default function CheckoutPage() {
                 Order Summary
               </h2>
 
+              <div className="space-y-4 mb-6">
+                <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter Coupon ID"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    className="flex-1 px-4 py-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-white text-sm focus:outline-none focus:border-[#E85D26]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={applyingCoupon || !couponCode.trim()}
+                    className="px-4 py-2 bg-[#2A2A2A] hover:bg-[#3A3A3A] text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {applyingCoupon ? '...' : 'Apply'}
+                  </button>
+                </form>
+
+                {couponError && <p className="text-red-400 text-xs">{couponError}</p>}
+                
+                {appliedCoupon && (
+                  <div className="flex items-center justify-between p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <span className="text-green-500 text-sm font-medium">{couponSuccess}</span>
+                    <button 
+                      onClick={handleRemoveCoupon}
+                      className="text-gray-400 hover:text-white text-xs underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Subtotal ({cartItems.length} items)</span>
                   <span className="text-gray-200">${subtotal.toFixed(2)}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-green-400">Discount ({appliedCoupon.discount_percent}%)</span>
+                    <span className="text-green-400">-${discountAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Delivery Fee</span>
                   <span className="text-gray-200">${deliveryFee.toFixed(2)}</span>

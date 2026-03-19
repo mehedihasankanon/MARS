@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProductsPage() {
+  const { user } = useAuth();
+  const [wishlistCache, setWishlistCache] = useState(new Set());
 
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,6 +22,48 @@ export default function ProductsPage() {
       setCategories(res.data);
     }).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      api.get('/wishlist').then(res => {
+        const ids = res.data.map(item => item.product_id);
+        setWishlistCache(new Set(ids));
+      }).catch(() => {});
+    } else {
+      setWishlistCache(new Set());
+    }
+  }, [user]);
+
+  const handleToggleWishlist = async (e, productId) => {
+    e.preventDefault(); 
+    if (!user) {
+      alert("Please login to manage your wishlist");
+      return;
+    }
+    
+    const product = products.find(p => p.product_id === productId);
+    if (product && product.seller_name === user.username) {
+      alert("You cannot wishlist your own product.");
+      return;
+    }
+
+    try {
+      if (wishlistCache.has(productId)) {
+        await api.delete(`/wishlist/items/${productId}`);
+        setWishlistCache(prev => {
+          const next = new Set(prev);
+          next.delete(productId);
+          return next;
+        });
+      } else {
+        await api.post(`/wishlist/items/${productId}`);
+        setWishlistCache(prev => new Set(prev).add(productId));
+      }
+    } catch (err) {
+      console.error('Failed to update wishlist:', err);
+      alert(err.response?.data?.message || err.response?.data?.error || "Failed to update wishlist");
+    }
+  };
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -151,10 +196,24 @@ export default function ProductsPage() {
               <Link
                 key={product.product_id}
                 href={`/products/${product.product_id}`}
-                className="group bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden hover:border-[#E85D26]/40 transition-all duration-300 hover:shadow-lg hover:shadow-[#E85D26]/5"
+                className="group bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden hover:border-[#E85D26]/40 transition-all duration-300 hover:shadow-lg hover:shadow-[#E85D26]/5 relative"
               >
 
-                <div className="w-full h-48 bg-gradient-to-br from-[#1A1A1A] to-[#0D0D0D] flex items-center justify-center overflow-hidden">
+                <div className="w-full h-48 bg-gradient-to-br from-[#1A1A1A] to-[#0D0D0D] flex items-center justify-center overflow-hidden relative">
+                  <button
+                    onClick={(e) => handleToggleWishlist(e, product.product_id)}
+                    className="absolute top-3 right-3 p-2 rounded-full bg-black/40 hover:bg-black/60 transition-colors z-10"
+                    title={wishlistCache.has(product.product_id) ? "Remove from wishlist" : "Add to wishlist"}
+                  >
+                    <svg 
+                      className={`w-5 h-5 transition-colors ${wishlistCache.has(product.product_id) ? 'text-red-500 fill-red-500' : 'text-gray-300 fill-transparent hover:text-white'}`} 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor" 
+                      strokeWidth={wishlistCache.has(product.product_id) ? "0" : "2"}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                  </button>
                   {product.images && product.images.length > 0 && product.images[0].image_url ? (
                     <img
                       src={product.images[0].image_url}

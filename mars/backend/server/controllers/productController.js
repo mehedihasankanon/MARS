@@ -29,7 +29,21 @@ exports.getAllProducts = async (req, res) => {
     else if (sort === "newest") orderClause = "ORDER BY p.Adding_Date DESC";
 
     const result = await pool.query(
-      `SELECT p.*, c.Name as category_name, u.Username as seller_name,
+      `SELECT p.Product_ID, p.Seller_ID, p.Category_ID, p.Name, p.Description, p.Adding_Date, p.Stock_Quantity, p.Condition_State,
+            p.Unit_Price as original_price,
+            COALESCE(
+              (SELECT po.Offer_Percent 
+               FROM Product_Offers po 
+               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               ORDER BY po.Offer_Percent DESC LIMIT 1), 0
+            ) as discount_percent,
+            (p.Unit_Price * (1 - COALESCE(
+              (SELECT po.Offer_Percent 
+               FROM Product_Offers po 
+               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               ORDER BY po.Offer_Percent DESC LIMIT 1), 0
+            ) / 100.0)) as unit_price,
+            c.Name as category_name, u.Username as seller_name,
             s.Rating as seller_rating,
             COALESCE(
               (SELECT json_agg(json_build_object('image_id', pi.Image_ID, 'image_url', pi.Image_URL))
@@ -57,7 +71,21 @@ exports.getProductById = async (req, res) => {
   try {
     const result = await pool.query(
       `
-            SELECT p.*, c.Name as category_name, u.Username as seller_name,
+            SELECT p.Product_ID, p.Seller_ID, p.Category_ID, p.Name, p.Description, p.Adding_Date, p.Stock_Quantity, p.Condition_State,
+            p.Unit_Price as original_price,
+            COALESCE(
+              (SELECT po.Offer_Percent 
+               FROM Product_Offers po 
+               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               ORDER BY po.Offer_Percent DESC LIMIT 1), 0
+            ) as discount_percent,
+            (p.Unit_Price * (1 - COALESCE(
+              (SELECT po.Offer_Percent 
+               FROM Product_Offers po 
+               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               ORDER BY po.Offer_Percent DESC LIMIT 1), 0
+            ) / 100.0)) as unit_price,
+            c.Name as category_name, u.Username as seller_name,
             s.Rating as seller_rating,
             COALESCE(
               (SELECT json_agg(json_build_object('image_id', pi.Image_ID, 'image_url', pi.Image_URL))
