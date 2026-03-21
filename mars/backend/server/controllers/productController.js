@@ -3,7 +3,7 @@ const { cloudinary } = require("../config/cloudinary.js");
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const { category, sort, search } = req.query;
+    const { category, sort, search, seller } = req.query;
     const params = [];
     let paramIndex = 1;
 
@@ -21,6 +21,13 @@ exports.getAllProducts = async (req, res) => {
       paramIndex++;
     }
 
+    if (seller) {
+      whereClause += whereClause ? " AND " : "WHERE ";
+      whereClause += "p.Seller_ID = $" + paramIndex;
+      params.push(seller);
+      paramIndex++;
+    }
+    
     let orderClause = "ORDER BY p.Adding_Date DESC";
     if (sort === "price_asc") orderClause = "ORDER BY p.Unit_Price ASC";
     else if (sort === "price_desc") orderClause = "ORDER BY p.Unit_Price DESC";
