@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
-import api from '@/lib/api';
-import { useAuth } from '@/context/AuthContext';
+import Link from "next/link";
+import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -22,52 +22,57 @@ export default function Navbar() {
   const notificationRef = useRef(null);
 
   useEffect(() => {
-    if (!user || (user.role !== 'seller' && user.role !== 'admin')) return;
+    if (!user || (user.role !== "seller" && user.role !== "admin")) return;
 
     const fetchNotifications = async () => {
       try {
-        const res = await api.get('/notifications');
+        const res = await api.get("/notifications");
         setNotifications(res.data);
       } catch (err) {
-        console.error('Failed to fetch notifications:', err);
+        console.error("Failed to fetch notifications:", err);
       }
     };
 
     fetchNotifications();
 
     const handleClickOutside = (event) => {
-      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
         setShowNotifications(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [user]);
 
   const handleMarkAsRead = async (notificationId) => {
     try {
       await api.patch(`/notifications/${notificationId}/read`);
-      setNotifications(prev => prev.map(n => n.notification_id === notificationId ? { ...n, is_read: true } : n));
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.notification_id === notificationId ? { ...n, is_read: true } : n,
+        ),
+      );
     } catch (err) {
-      console.error('Failed to mark as read:', err);
+      console.error("Failed to mark as read:", err);
     }
   };
 
   const handleMarkAllAsRead = async () => {
     try {
-      await api.patch('/notifications/read-all');
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      await api.patch("/notifications/read-all");
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     } catch (err) {
-      console.error('Failed to mark all as read:', err);
+      console.error("Failed to mark all as read:", err);
     }
   };
 
   return (
     <nav className="sticky top-0 z-50 bg-[#0A0A0A]/95 backdrop-blur-md border-b border-[#1A1A1A] shadow-lg shadow-black/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-
         <div className="flex justify-between items-center h-16">
-          
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center gap-3 group">
               <Image
@@ -103,22 +108,24 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-4">
             {loading ? null : user ? (
               <>
-                {(user.role === 'seller' || user.role === 'admin') && (
+                {(user.role === "seller" || user.role === "admin") && (
                   <div className="relative" ref={notificationRef}>
                     <button
                       onClick={() => setShowNotifications(!showNotifications)}
-                      className="p-2 text-gray-300 hover:text-[#E85D26] transition-colors relative"
+                      className="p-2 text-gray-300 hover:text-[#E85D26] hover:scale-103 cursor-pointer relative"
                     >
                       🔔
-                      {notifications.filter(n => !n.is_read).length > 0 && (
+                      {notifications.filter((n) => !n.is_read).length > 0 && (
                         <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0A0A0A]"></span>
                       )}
                     </button>
                     {showNotifications && (
                       <div className="absolute right-0 mt-2 w-80 bg-[#111111] border border-[#2A2A2A] rounded-xl shadow-xl overflow-hidden z-50">
                         <div className="p-3 border-b border-[#2A2A2A] flex justify-between items-center bg-[#1A1A1A]">
-                          <h3 className="text-sm font-bold text-white">Notifications</h3>
-                          {notifications.some(n => !n.is_read) && (
+                          <h3 className="text-sm font-bold text-white">
+                            Notifications
+                          </h3>
+                          {notifications.some((n) => !n.is_read) && (
                             <button
                               onClick={handleMarkAllAsRead}
                               className="text-xs text-[#E85D26] hover:text-[#D14F1E]"
@@ -129,23 +136,68 @@ export default function Navbar() {
                         </div>
                         <div className="max-h-80 overflow-y-auto">
                           {notifications.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-gray-400">No notifications</div>
+                            <div className="p-4 text-center text-sm text-gray-400">
+                              No notifications
+                            </div>
                           ) : (
-                            notifications.map(n => (
-                              <div
-                                key={n.notification_id}
-                                onClick={() => !n.is_read && handleMarkAsRead(n.notification_id)}
-                                className={`p-3 border-b border-[#2A2A2A] cursor-pointer transition-colors ${n.is_read ? 'bg-[#111111] opacity-70' : 'bg-[#1A1A1A] hover:bg-[#222222]'}`}
-                              >
-                                <div className="flex gap-2">
-                                  {!n.is_read && <span className="w-1.5 h-1.5 rounded-full bg-[#E85D26] mt-1.5 flex-shrink-0" />}
-                                  <p className="text-xs text-white leading-relaxed">{n.message}</p>
+                            notifications.map((n) => {
+                              const baseRowClass = `p-3 border-b border-[#2A2A2A] cursor-pointer transition-colors ${n.is_read ? "bg-[#111111] opacity-70" : "bg-[#1A1A1A] hover:bg-[#222222]"}`;
+                              const linkRowClass = `${baseRowClass} block no-underline`;
+                              const body = (
+                                <>
+                                  <div className="flex gap-2">
+                                    {!n.is_read && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-[#E85D26] mt-1.5 shrink-0" />
+                                    )}
+                                    <p className="text-xs text-white leading-relaxed">
+                                      {n.message}
+                                    </p>
+                                  </div>
+                                  <p className="text-[10px] text-gray-500 mt-1 pl-3.5">
+                                    {new Date(
+                                      n.created_at,
+                                    ).toLocaleDateString()}{" "}
+                                    {new Date(n.created_at).toLocaleTimeString(
+                                      [],
+                                      {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )}
+                                  </p>
+                                </>
+                              );
+                              const pid = n.product_id;
+                              if (pid) {
+                                return (
+                                  <Link
+                                    key={n.notification_id}
+                                    href={`/products/${pid}`}
+                                    onClick={() => {
+                                      if (!n.is_read) {
+                                        handleMarkAsRead(n.notification_id);
+                                      }
+                                      setShowNotifications(false);
+                                    }}
+                                    className={linkRowClass}
+                                  >
+                                    {body}
+                                  </Link>
+                                );
+                              }
+                              return (
+                                <div
+                                  key={n.notification_id}
+                                  onClick={() =>
+                                    !n.is_read &&
+                                    handleMarkAsRead(n.notification_id)
+                                  }
+                                  className={baseRowClass}
+                                >
+                                  {body}
                                 </div>
-                                <p className="text-[10px] text-gray-500 mt-1 pl-3.5">
-                                  {new Date(n.created_at).toLocaleDateString()} {new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </p>
-                              </div>
-                            ))
+                              );
+                            })
                           )}
                         </div>
                       </div>
@@ -154,7 +206,7 @@ export default function Navbar() {
                 )}
                 <Link
                   href="/profile"
-                  className={`flex items-center gap-2 text-sm ${pathname?.startsWith('/profile') ? 'text-[#E85D26]' : 'text-gray-300'} hover:text-[#E85D26] transition-colors`}
+                  className={`flex items-center gap-2 text-sm ${pathname?.startsWith("/profile") ? "text-[#E85D26]" : "text-gray-300"} hover:text-[#E85D26] transition-colors`}
                 >
                   {user.profile_picture ? (
                     <img
@@ -164,20 +216,24 @@ export default function Navbar() {
                     />
                   ) : (
                     <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#E85D26] to-[#F59E0B] flex items-center justify-center text-xs font-bold text-white">
-                      {(user.first_name || user.username || '?')[0].toUpperCase()}
+                      {(user.first_name ||
+                        user.username ||
+                        "?")[0].toUpperCase()}
                     </span>
                   )}
-                  <span className="text-[#E85D26] font-medium">{user.first_name || user.username}</span>
+                  <span className="text-[#E85D26] font-medium">
+                    {user.first_name || user.username}
+                  </span>
                 </Link>
-                {(user.role === 'seller' || user.role === 'admin') && (
+                {(user.role === "seller" || user.role === "admin") && (
                   <Link
                     href="/dashboard"
-                    className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith('/dashboard') ? 'text-white bg-[#F59E0B]' : 'text-[#F59E0B] hover:bg-[#F59E0B]/10'} border border-[#F59E0B]/30 rounded-lg transition-colors`}
+                    className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith("/dashboard") ? "text-white bg-[#F59E0B]" : "text-[#F59E0B] hover:bg-[#F59E0B]/10"} border border-[#F59E0B]/30 rounded-lg transition-colors`}
                   >
                     Dashboard
                   </Link>
                 )}
-                {user.role === 'admin' && (
+                {user.role === "admin" && (
                   <Link
                     href="/admin"
                     className="px-3 py-1.5 text-sm font-medium text-red-400 border border-red-400/30 rounded-lg hover:bg-red-400/10 transition-colors"
@@ -187,7 +243,7 @@ export default function Navbar() {
                 )}
                 <Link
                   href="/analytics"
-                  className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith('/analytics') ? 'text-white bg-[#E85D26]' : 'text-gray-300 hover:text-[#E85D26]'} rounded-lg transition-colors`}
+                  className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith("/analytics") ? "text-white bg-[#E85D26]" : "text-gray-300 hover:text-[#E85D26]"} rounded-lg transition-colors`}
                 >
                   Analytics
                 </Link>
@@ -200,13 +256,13 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <Link 
+                <Link
                   href="/auth/login"
                   className="px-4 py-2 text-sm font-medium text-gray-300 hover:text-[#E85D26] transition-colors"
                 >
                   Login
                 </Link>
-                <Link 
+                <Link
                   href="/auth/register"
                   className="px-5 py-2 text-sm font-medium text-white bg-[#E85D26] rounded-lg hover:bg-[#D14F1E] transition-colors shadow-md shadow-[#E85D26]/20"
                 >
@@ -223,12 +279,32 @@ export default function Navbar() {
               aria-label="Toggle menu"
             >
               {isMobileMenuOpen ? (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               ) : (
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               )}
             </button>
@@ -245,10 +321,10 @@ export default function Navbar() {
                 <MobileNavLink href="/orders" label="Orders" />
                 <MobileNavLink href="/wishlist" label="Wishlist" />
                 <MobileNavLink href="/profile" label="Profile" />
-                {(user.role === 'seller' || user.role === 'admin') && (
+                {(user.role === "seller" || user.role === "admin") && (
                   <MobileNavLink href="/dashboard" label="Dashboard" />
                 )}
-                {user.role === 'admin' && (
+                {user.role === "admin" && (
                   <MobileNavLink href="/admin" label="Admin Panel" />
                 )}
               </>
@@ -258,7 +334,10 @@ export default function Navbar() {
               {user ? (
                 <>
                   <span className="block px-4 py-2 text-sm text-gray-300">
-                    Signed in as <span className="text-[#E85D26]">{user.first_name || user.username}</span>
+                    Signed in as{" "}
+                    <span className="text-[#E85D26]">
+                      {user.first_name || user.username}
+                    </span>
                   </span>
                   <button
                     onClick={logout}
@@ -269,13 +348,13 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link 
+                  <Link
                     href="/auth/login"
                     className="block px-4 py-2 text-sm font-medium text-gray-300 hover:bg-[#1A1A1A] rounded-lg transition-colors"
                   >
                     Login
                   </Link>
-                  <Link 
+                  <Link
                     href="/auth/register"
                     className="block px-4 py-2 text-sm font-medium text-white bg-[#E85D26] rounded-lg hover:bg-[#D14F1E] transition-colors text-center"
                   >
@@ -293,12 +372,13 @@ export default function Navbar() {
 
 function NavLink({ href, label }) {
   const pathname = usePathname();
-  const isActive = pathname === href || (href !== '/' && pathname?.startsWith(href));
-  
+  const isActive =
+    pathname === href || (href !== "/" && pathname?.startsWith(href));
+
   return (
     <Link
       href={href}
-      className={`${isActive ? 'text-[#E85D26]' : 'text-gray-300'} hover:text-[#E85D26] font-medium transition-colors duration-200`}
+      className={`${isActive ? "text-[#E85D26]" : "text-gray-300"} hover:text-[#E85D26] font-medium transition-colors duration-200`}
     >
       {label}
     </Link>
@@ -307,12 +387,13 @@ function NavLink({ href, label }) {
 
 function MobileNavLink({ href, label }) {
   const pathname = usePathname();
-  const isActive = pathname === href || (href !== '/' && pathname?.startsWith(href));
+  const isActive =
+    pathname === href || (href !== "/" && pathname?.startsWith(href));
 
   return (
     <Link
       href={href}
-      className={`block px-4 py-2.5 ${isActive ? 'text-[#E85D26] bg-[#1A1A1A]' : 'text-gray-300'} hover:text-[#E85D26] hover:bg-[#1A1A1A] rounded-lg font-medium transition-colors`}
+      className={`block px-4 py-2.5 ${isActive ? "text-[#E85D26] bg-[#1A1A1A]" : "text-gray-300"} hover:text-[#E85D26] hover:bg-[#1A1A1A] rounded-lg font-medium transition-colors`}
     >
       {label}
     </Link>
