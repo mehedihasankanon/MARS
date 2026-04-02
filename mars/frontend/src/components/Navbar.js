@@ -69,6 +69,38 @@ export default function Navbar() {
     }
   };
 
+  const getNotificationMeta = (n) => {
+    let type = n.notification_type;
+  
+    if (!type) {
+      if (n.message?.startsWith("New order received")) {
+        type = "order";
+      } else if (n.message?.startsWith("A new question was asked")) {
+        type = "question";
+      } else if (n.message?.startsWith("A new review was posted")) {
+        type = "review";
+      } else {
+        type = "general";
+      }
+    }
+  
+    let href = null;
+  
+    if (type === "order" && n.order_id) {
+      href = `/dashboard?tab=orders&order=${n.order_id}`;
+    } else if (n.product_id) {
+      href = `/products/${n.product_id}`;
+    }
+  
+    let badge = "Notice";
+  
+    if (type === "order") badge = "Order";
+    else if (type === "question") badge = "Question";
+    else if (type === "review") badge = "Review";
+  
+    return { type, href, badge };
+  };
+
   return (
     <nav className="sticky top-0 z-50 bg-[#0A0A0A]/95 backdrop-blur-md border-b border-[#1A1A1A] shadow-lg shadow-black/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,6 +173,25 @@ export default function Navbar() {
                             </div>
                           ) : (
                             notifications.map((n) => {
+                              const meta = getNotificationMeta(n);
+                              const badgeIcon =
+                                meta.type === "order"
+                                  ? "🛒"
+                                  : meta.type === "question"
+                                    ? "💬"
+                                    : meta.type === "review"
+                                      ? "⭐"
+                                      : "🔔";
+
+                              const badgeClass =
+                                meta.type === "order"
+                                  ? "bg-[#E85D26]/15 text-[#E85D26] border-[#E85D26]/30"
+                                  : meta.type === "question"
+                                    ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                                    : meta.type === "review"
+                                      ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                      : "bg-gray-500/10 text-gray-400 border-gray-500/20";
+
                               const baseRowClass = `p-3 border-b border-[#2A2A2A] cursor-pointer transition-colors ${n.is_read ? "bg-[#111111] opacity-70" : "bg-[#1A1A1A] hover:bg-[#222222]"}`;
                               const linkRowClass = `${baseRowClass} block no-underline`;
                               const body = (
@@ -149,9 +200,18 @@ export default function Navbar() {
                                     {!n.is_read && (
                                       <span className="w-1.5 h-1.5 rounded-full bg-[#E85D26] mt-1.5 shrink-0" />
                                     )}
-                                    <p className="text-xs text-white leading-relaxed">
-                                      {n.message}
-                                    </p>
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1.5">
+                                        <span
+                                          className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeClass}`}
+                                        >
+                                          {badgeIcon} {meta.badge}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-white leading-relaxed">
+                                        {n.message}
+                                      </p>
+                                    </div>
                                   </div>
                                   <p className="text-[10px] text-gray-500 mt-1 pl-3.5">
                                     {new Date(
@@ -167,12 +227,12 @@ export default function Navbar() {
                                   </p>
                                 </>
                               );
-                              const pid = n.product_id;
-                              if (pid) {
+
+                              if (meta.href) {
                                 return (
                                   <Link
                                     key={n.notification_id}
-                                    href={`/products/${pid}`}
+                                    href={meta.href}
                                     onClick={() => {
                                       if (!n.is_read) {
                                         handleMarkAsRead(n.notification_id);

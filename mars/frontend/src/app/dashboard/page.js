@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState('products'); 
+  const tabParam = searchParams.get('tab');
+  const orderParam = searchParams.get('order');
 
   const [allProducts, setAllProducts] = useState([]);       
   const [myProducts, setMyProducts] = useState([]);         
@@ -167,6 +170,14 @@ export default function DashboardPage() {
 
     fetchData();
   }, [user]);
+
+  useEffect(() => {
+    if (!tabParam) return;
+    const allowedTabs = ['products', 'orders', 'returns', 'add'];
+    if (allowedTabs.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   useEffect(() => {
     if (!user || activeTab !== 'orders') return;
@@ -575,11 +586,12 @@ export default function DashboardPage() {
                     Cancelled: 'bg-red-500/10 text-red-400 border-red-500/30',
                   };
                   const statusClass = statusColors[order.order_status] || statusColors.Pending;
+                  const isTargetOrder = orderParam && orderParam === order.order_id;
 
                   return (
                     <div
                       key={order.order_id}
-                      className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6 hover:border-[#E85D26]/30 transition-all"
+                      className={`bg-[#111111] rounded-xl border border-[#2A2A2A] p-6 hover:border-[#E85D26]/30 transition-all ${isTargetOrder ? 'ring-2 ring-[#E85D26]/40' : ''}`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                         <div>
