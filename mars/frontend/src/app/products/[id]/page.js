@@ -701,9 +701,19 @@ export default function ProductDetailPage() {
                             </div>
                           )}
                           <div>
-                            <p className="text-white text-sm font-medium">
-                              {review.username}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-white text-sm font-medium">
+                                {review.username}
+                              </p>
+                              {review.verified && (
+                                <span className="text-[10px] font-medium text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Verified Purchase
+                                </span>
+                              )}
+                            </div>
                             <p className="text-gray-500 text-xs">
                               {new Date(
                                 review.review_date,
