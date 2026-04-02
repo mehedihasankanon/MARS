@@ -53,10 +53,11 @@ exports.registerUser = async (req, res) => {
 
     // extract the password, set it into a dummy value,
     // and set the remaining into the safeUser object to be sent in the response
-    // we could alternately write `password: ignored` and be done with it 
+    // we could alternately write `password: ignored` and be done with it
     const { password: _, ...safeUser } = user;
-    res.status(201).json({ message: "Login successful", token, user: safeUser, role });
-
+    res
+      .status(201)
+      .json({ message: "Login successful", token, user: safeUser, role });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
@@ -122,7 +123,9 @@ exports.loginUser = async (req, res) => {
     });
 
     const { password: _, ...safeUser } = user;
-    res.status(201).json({ message: "Login successful", token, user: safeUser, role });
+    res
+      .status(201)
+      .json({ message: "Login successful", token, user: safeUser, role });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
@@ -140,13 +143,19 @@ exports.changePassword = async (req, res) => {
   try {
     await client.query("BEGIN");
 
-    const userResult = await client.query("SELECT password FROM Users WHERE User_ID = $1", [userId]);
+    const userResult = await client.query(
+      "SELECT password FROM Users WHERE User_ID = $1",
+      [userId],
+    );
     if (userResult.rows.length === 0) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "User not found" });
     }
 
-    const passwordMatch = await bcrypt.compare(currentPassword, userResult.rows[0].password);
+    const passwordMatch = await bcrypt.compare(
+      currentPassword,
+      userResult.rows[0].password,
+    );
     if (!passwordMatch) {
       await client.query("ROLLBACK");
       return res.status(401).json({ error: "Incorrect current password" });
@@ -155,7 +164,10 @@ exports.changePassword = async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
 
-    await client.query("UPDATE Users SET password = $1 WHERE User_ID = $2", [hashedPassword, userId]);
+    await client.query("UPDATE Users SET password = $1 WHERE User_ID = $2", [
+      hashedPassword,
+      userId,
+    ]);
 
     await client.query("COMMIT");
     res.json({ message: "Password updated successfully" });
@@ -163,6 +175,48 @@ exports.changePassword = async (req, res) => {
     await client.query("ROLLBACK");
     console.error(err);
     return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};
+
+// router.put("/add-admin", authenticateToken, authorizeRoles("admin"), authController.addAdmin);
+
+// CREATE TABLE Users (
+//     User_ID UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//     Username VARCHAR(100) UNIQUE NOT NULL,
+//     Email VARCHAR(100) UNIQUE NOT NULL,
+//     Password VARCHAR(255) NOT NULL,
+//     First_Name VARCHAR(50) NOT NULL,
+//     Last_Name VARCHAR(50),
+//     Profile_Picture VARCHAR(255),
+//     Phone_Number VARCHAR(20) NOT NULL,
+//     Is_Active BOOLEAN DEFAULT TRUE,
+//     Created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+//     Last_Login TIMESTAMP
+// );
+
+exports.addAdmin = async (req, res) => {
+  const { username, email, password, firstName, lastName, phone } = req.body;
+
+  const client = await pool.connect();
+  const saltRounds = 10;
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+  const userResultQuery = await client.query(
+    "INSERT INTO users (username, email, password, first_name, last_name, phone_number) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+    [username, email, hashedPassword, firstName, lastName, phone],
+  );
+
+  const user = userResultQuery.rows[0];
+
+  await client.query("INSERT INTO admins (admin_id) VALUES ($1)", [
+    user.user_id,
+  ]);
+
+  res.status(201).json({ message: "Admin added successfully", user });
+  try {
+  } catch (err) {
   } finally {
     client.release();
   }
