@@ -33,11 +33,11 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post("/auth/login", { email, password });
-    const { token: newToken, user: userData, role } = res.data;
+    const { token: newToken, user: userData, role, seller_pending_approval } = res.data;
 
     localStorage.setItem("token", newToken);
     setToken(newToken);
-    setUser({ ...userData, role });
+    setUser({ ...userData, role, seller_pending_approval: !!seller_pending_approval });
     router.push("/");
 
     return res.data;
@@ -45,12 +45,15 @@ export function AuthProvider({ children }) {
 
   const register = async (formData) => {
     const res = await api.post("/auth/register", formData);
-    const { token: newToken, user: userData } = res.data;
+    const { token: newToken, user: userData, role, seller_pending_approval } = res.data;
 
     localStorage.setItem("token", newToken);
     setToken(newToken);
-    setUser({ ...userData, role: formData.role || "customer" });
-    router.push("/");
+    setUser({ ...userData, role: role || "customer", seller_pending_approval: !!seller_pending_approval });
+    // Stay on the register page so we can show the seller approval message.
+    if (!seller_pending_approval) {
+      router.push("/");
+    }
 
     return res.data;
   };
@@ -64,11 +67,7 @@ export function AuthProvider({ children }) {
 
   const becomeSeller = async (shopName) => {
     const res = await api.post("/users/become-seller", { shopName });
-    const { token: newToken, role } = res.data;
-
-    localStorage.setItem("token", newToken);
-    setToken(newToken);
-    setUser((prev) => ({ ...prev, role }));
+    setUser((prev) => ({ ...prev, seller_pending_approval: true }));
 
     return res.data;
   };

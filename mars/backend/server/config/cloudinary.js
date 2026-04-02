@@ -26,7 +26,17 @@ const productStorage = new CloudinaryStorage({
   },
 });
 
+const returnStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "mars/return_images",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    transformation: [{ width: 1200, height: 1200, crop: "limit" }],
+  },
+});
+
 const upload = multer({ storage: profileStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 const productUpload = multer({ storage: productStorage, limits: { fileSize: 5 * 1024 * 1024 } });
+const returnUpload = multer({ storage: returnStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 
-module.exports = { cloudinary, upload, productUpload };
+module.exports = { cloudinary, upload, productUpload, returnUpload };

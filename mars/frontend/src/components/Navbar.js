@@ -22,7 +22,7 @@ export default function Navbar() {
   const notificationRef = useRef(null);
 
   useEffect(() => {
-    if (!user || (user.role !== "seller" && user.role !== "admin")) return;
+    if (!user) return;
 
     const fetchNotifications = async () => {
       try {
@@ -88,6 +88,8 @@ export default function Navbar() {
   
     if (type === "order" && n.order_id) {
       href = `/dashboard?tab=orders&order=${n.order_id}`;
+    } else if (type === "delivery_confirm" && n.order_id && n.product_id) {
+      href = `/orders?order=${n.order_id}&product=${n.product_id}`;
     } else if (n.product_id) {
       href = `/products/${n.product_id}`;
     }
@@ -97,6 +99,8 @@ export default function Navbar() {
     if (type === "order") badge = "Order";
     else if (type === "question") badge = "Question";
     else if (type === "review") badge = "Review";
+    else if (type === "delivery_confirm") badge = "Delivery";
+    else if (type === "seller_approved") badge = "Seller";
   
     return { type, href, badge };
   };
@@ -140,8 +144,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-4">
             {loading ? null : user ? (
               <>
-                {(user.role === "seller" || user.role === "admin") && (
-                  <div className="relative" ref={notificationRef}>
+                <div className="relative" ref={notificationRef}>
                     <button
                       onClick={() => setShowNotifications(!showNotifications)}
                       className="p-2 text-gray-300 hover:text-[#E85D26] hover:scale-103 cursor-pointer relative"
@@ -181,6 +184,10 @@ export default function Navbar() {
                                     ? "💬"
                                     : meta.type === "review"
                                       ? "⭐"
+                                      : meta.type === "delivery_confirm"
+                                        ? "📦"
+                                        : meta.type === "seller_approved"
+                                          ? "✅"
                                       : "🔔";
 
                               const badgeClass =
@@ -190,6 +197,10 @@ export default function Navbar() {
                                     ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
                                     : meta.type === "review"
                                       ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                      : meta.type === "delivery_confirm"
+                                        ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                        : meta.type === "seller_approved"
+                                          ? "bg-green-500/10 text-green-400 border-green-500/30"
                                       : "bg-gray-500/10 text-gray-400 border-gray-500/20";
 
                               const baseRowClass = `p-3 border-b border-[#2A2A2A] cursor-pointer transition-colors ${n.is_read ? "bg-[#111111] opacity-70" : "bg-[#1A1A1A] hover:bg-[#222222]"}`;
@@ -263,7 +274,6 @@ export default function Navbar() {
                       </div>
                     )}
                   </div>
-                )}
                 <Link
                   href="/profile"
                   className={`flex items-center gap-2 text-sm ${pathname?.startsWith("/profile") ? "text-[#E85D26]" : "text-gray-300"} hover:text-[#E85D26] transition-colors`}

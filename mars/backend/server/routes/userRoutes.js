@@ -9,6 +9,18 @@ router.post("/become-seller", authenticateToken, userController.becomeSeller);
 router.post("/profile/picture", authenticateToken, upload.single("profilePicture"), userController.uploadProfilePicture);
 router.delete("/profile/picture", authenticateToken, userController.removeProfilePicture);
 router.get(
+  "/seller-requests",
+  authenticateToken,
+  authorizeRoles("admin"),
+  userController.getPendingSellers,
+);
+router.post(
+  "/seller-requests/:sellerId/approve",
+  authenticateToken,
+  authorizeRoles("admin"),
+  userController.approveSeller,
+);
+router.get(
   "/",
   authenticateToken,
   authorizeRoles("admin"),

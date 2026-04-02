@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const shipmentController = require("../controllers/shipmentController");
 const { authenticateToken, authorizeRoles } = require("../middleware/jwt");
+const { ensureApprovedSeller } = require("../middleware/sellerApproval");
 
 // Any authenticated user (access is checked inside the controller)
 router.get(
@@ -15,6 +16,7 @@ router.patch(
   "/:shipmentId",
   authenticateToken,
   authorizeRoles("seller", "admin"),
+  ensureApprovedSeller,
   shipmentController.updateShipment,
 );
 

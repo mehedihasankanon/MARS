@@ -13,10 +13,29 @@ exports.requestReturn = async (req, res) => {
       return res.status(400).json({ error: "Order ID and reason are required" });
     }
 
-    await client.query("CALL mars.request_return($1, $2, $3)", [orderId, customerId, reason]);
+    const returnIdResult = await client.query(
+      "SELECT mars.request_return_returning($1, $2, $3) AS return_id",
+      [orderId, customerId, reason],
+    );
+    const returnId = returnIdResult.rows[0]?.return_id;
+
+    if (!returnId) {
+      await client.query("ROLLBACK");
+      return res.status(500).json({ error: "Failed to create return request" });
+    }
+
+    const files = req.files || [];
+    if (files.length > 0) {
+      for (const file of files) {
+        await client.query(
+          "INSERT INTO mars.Return_Images (Return_ID, Image_URL) VALUES ($1, $2)",
+          [returnId, file.path],
+        );
+      }
+    }
 
     await client.query("COMMIT");
-    res.json({ message: "Return requested successfully" });
+    res.json({ message: "Return requested successfully", return_id: returnId });
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error requesting return:", error);

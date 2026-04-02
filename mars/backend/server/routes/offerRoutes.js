@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const offerController = require("../controllers/offerController");
 const { authenticateToken, authorizeRoles } = require("../middleware/jwt");
+const { ensureApprovedSeller } = require("../middleware/sellerApproval");
 
 // Public — anyone can browse active deals
 router.get("/", offerController.getActiveOffers);
@@ -14,6 +15,7 @@ router.post(
   "/",
   authenticateToken,
   authorizeRoles("seller", "admin"),
+  ensureApprovedSeller,
   offerController.createOffer,
 );
 
@@ -22,6 +24,7 @@ router.put(
   "/:id",
   authenticateToken,
   authorizeRoles("seller", "admin"),
+  ensureApprovedSeller,
   offerController.updateOffer,
 );
 
@@ -30,6 +33,7 @@ router.delete(
   "/:id",
   authenticateToken,
   authorizeRoles("seller", "admin"),
+  ensureApprovedSeller,
   offerController.deleteOffer,
 );
 

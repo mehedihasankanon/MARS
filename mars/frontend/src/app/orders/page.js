@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [orders, setOrders] = useState([]);       
   const [loading, setLoading] = useState(true);   
@@ -16,6 +17,7 @@ export default function OrdersPage() {
 
   const [returnOrder, setReturnOrder] = useState(null);
   const [returnReason, setReturnReason] = useState('');
+  const [returnImages, setReturnImages] = useState([]);
   const [returnLoading, setReturnLoading] = useState(false);
   const [returnError, setReturnError] = useState('');
   const [returnSuccess, setReturnSuccess] = useState('');
@@ -29,7 +31,14 @@ export default function OrdersPage() {
     setReturnLoading(true);
 
     try {
-      await api.post('/returns/request', { orderId: returnOrder, reason: returnReason.trim() });
+      const formData = new FormData();
+      formData.append('orderId', returnOrder);
+      formData.append('reason', returnReason.trim());
+      returnImages.slice(0, 5).forEach((file) => formData.append('images', file));
+
+      await api.post('/returns/request', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       setReturnSuccess('Return request submitted successfully. Waiting for seller approval.');
       // Update local state to show 'Return Pending'
       setOrders(orders.map(o => o.order_id === returnOrder ? { ...o, order_status: 'Return Pending' } : o));
@@ -37,11 +46,84 @@ export default function OrdersPage() {
         setReturnOrder(null);
         setReturnSuccess('');
         setReturnReason('');
+        setReturnImages([]);
       }, 2000);
     } catch (err) {
       setReturnError(err.response?.data?.error || 'Failed to submit return request.');
     } finally {
       setReturnLoading(false);
+    }
+  };
+
+  const [confirmItem, setConfirmItem] = useState(null); // { orderId, productId }
+  const [confirmReceivedOk, setConfirmReceivedOk] = useState(true);
+  const [confirmFeedback, setConfirmFeedback] = useState('');
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
+
+  const handleSubmitDeliveryConfirm = async (e) => {
+    e.preventDefault();
+    if (!confirmItem) return;
+    setConfirmError('');
+    setConfirmLoading(true);
+    try {
+      await api.post(
+        `/orders/${confirmItem.orderId}/items/${confirmItem.productId}/delivery-confirmation`,
+        { receivedOk: confirmReceivedOk, feedback: confirmFeedback.trim() || null }
+      );
+
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.order_id !== confirmItem.orderId) return o;
+          return {
+            ...o,
+            items: (o.items || []).map((it) =>
+              it.product_id === confirmItem.productId
+                ? { ...it, delivered_confirmed: true }
+                : it
+            ),
+          };
+        })
+      );
+
+      setConfirmItem(null);
+      setConfirmFeedback('');
+      setConfirmReceivedOk(true);
+    } catch (err) {
+      setConfirmError(err.response?.data?.error || 'Failed to save confirmation.');
+    } finally {
+      setConfirmLoading(false);
+    }
+  };
+
+  const [scamModal, setScamModal] = useState(null); // { orderId, productId }
+  const [scamDescription, setScamDescription] = useState('');
+  const [scamSubmitting, setScamSubmitting] = useState(false);
+  const [scamError, setScamError] = useState('');
+  const [scamSuccess, setScamSuccess] = useState('');
+
+  const submitScamReport = async (e) => {
+    e.preventDefault();
+    if (!scamModal || !scamDescription.trim()) return;
+    setScamError('');
+    setScamSuccess('');
+    setScamSubmitting(true);
+    try {
+      await api.post('/reports/scam', {
+        orderId: scamModal.orderId,
+        productId: scamModal.productId || null,
+        description: scamDescription.trim(),
+      });
+      setScamSuccess('Scam report submitted. Admin will review it.');
+      setTimeout(() => {
+        setScamModal(null);
+        setScamDescription('');
+        setScamSuccess('');
+      }, 1500);
+    } catch (err) {
+      setScamError(err.response?.data?.error || 'Failed to submit scam report.');
+    } finally {
+      setScamSubmitting(false);
     }
   };
 
@@ -89,6 +171,22 @@ export default function OrdersPage() {
 
     fetchOrders();
   }, [user, authLoading]);
+
+  useEffect(() => {
+    if (!orders || orders.length === 0) return;
+    const qOrder = searchParams.get('order');
+    if (qOrder) {
+      const exists = orders.some((o) => o.order_id === qOrder);
+      if (exists) {
+        const qProduct = searchParams.get('product');
+        if (qProduct) {
+          setConfirmItem({ orderId: qOrder, productId: qProduct });
+          setConfirmReceivedOk(true);
+          setConfirmFeedback('');
+        }
+      }
+    }
+  }, [orders, searchParams]);
 
   const getStatusStyle = (status) => {
     const styles = {
@@ -207,6 +305,11 @@ export default function OrdersPage() {
                             >
                               Product #{item.product_id?.slice(0, 8)}
                             </Link>
+                            {item.item_status && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full ${getStatusStyle(item.item_status)}`}>
+                                {item.item_status}
+                              </span>
+                            )}
                           </div>
                           <span className="text-gray-400">
                             ${parseFloat(item.net_price || 0).toFixed(2)}
@@ -253,16 +356,41 @@ export default function OrdersPage() {
                         Track Shipment
                       </button>
                     )}
-                    {order.order_status === 'Delivered' && (
+                    <div className="flex gap-4 items-center mt-2">
                       <button 
                         onClick={() => { setReturnOrder(order.order_id); setReturnError(''); setReturnSuccess(''); }}
-                        className="mt-2 text-sm text-red-500 hover:text-red-400 font-medium underline underline-offset-2 transition-colors"
+                        className="text-sm text-red-500 hover:text-red-400 font-medium underline underline-offset-2 transition-colors"
                       >
                         Request Return
                       </button>
-                    )}
+                      <button
+                        onClick={() => { setScamModal({ orderId: order.order_id, productId: order.items?.[0]?.product_id || null }); setScamError(''); setScamSuccess(''); }}
+                        className="text-sm text-gray-300 hover:text-red-400 font-medium underline underline-offset-2 transition-colors"
+                      >
+                        Report Scam
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {order.items?.some((it) => it.item_status === 'Delivered' && !it.delivered_confirmed) && (
+                  <div className="px-6 py-3 border-t border-[#1A1A1A] bg-[#0A0A0A]">
+                    <p className="text-xs text-gray-500 mb-2">Delivery confirmation needed:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {order.items
+                        .filter((it) => it.item_status === 'Delivered' && !it.delivered_confirmed)
+                        .map((it) => (
+                          <button
+                            key={it.product_id}
+                            onClick={() => { setConfirmItem({ orderId: order.order_id, productId: it.product_id }); setConfirmError(''); setConfirmReceivedOk(true); setConfirmFeedback(''); }}
+                            className="px-3 py-1.5 text-xs bg-purple-600/20 text-purple-300 border border-purple-600/30 rounded-lg hover:bg-purple-600/30 transition-colors"
+                          >
+                            Confirm item #{it.product_id?.slice(0, 6)}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -350,6 +478,24 @@ export default function OrdersPage() {
                   className="w-full h-32 px-4 py-3 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:border-[#E85D26] resize-none"
                   required
                 />
+
+                <div>
+                  <p className="text-sm text-gray-300 mb-1">Add images (optional)</p>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setReturnImages((prev) => [...prev, ...files].slice(0, 5));
+                      e.target.value = '';
+                    }}
+                    className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-[#E85D26] file:text-white hover:file:bg-[#D14F1E]"
+                  />
+                  {returnImages.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-2">{returnImages.length}/5 image(s) selected</p>
+                  )}
+                </div>
                 
                 <div className="flex gap-3 justify-end pt-2">
                   <button
@@ -366,6 +512,117 @@ export default function OrdersPage() {
                     className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
                   >
                     {returnLoading ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Confirmation Modal */}
+      {confirmItem && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !confirmLoading && setConfirmItem(null)}>
+          <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-4">Confirm Delivery</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              Confirm whether you received this item properly. If not, your feedback will be shared with the seller.
+            </p>
+            {confirmError && <p className="text-sm text-red-400 mb-3">{confirmError}</p>}
+            <form onSubmit={handleSubmitDeliveryConfirm} className="space-y-4">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmReceivedOk(true)}
+                  className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    confirmReceivedOk
+                      ? 'bg-green-600/20 border-green-600/40 text-green-300'
+                      : 'bg-[#1A1A1A] border-[#2A2A2A] text-gray-300 hover:border-green-600/30'
+                  }`}
+                >
+                  Received OK
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmReceivedOk(false)}
+                  className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    !confirmReceivedOk
+                      ? 'bg-red-600/15 border-red-600/40 text-red-300'
+                      : 'bg-[#1A1A1A] border-[#2A2A2A] text-gray-300 hover:border-red-600/30'
+                  }`}
+                >
+                  Not received properly
+                </button>
+              </div>
+
+              {!confirmReceivedOk && (
+                <textarea
+                  value={confirmFeedback}
+                  onChange={(e) => setConfirmFeedback(e.target.value)}
+                  placeholder="Tell the seller what went wrong (missing parts, damaged, not received, etc.)"
+                  className="w-full h-24 px-4 py-3 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:border-[#E85D26] resize-none"
+                />
+              )}
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  disabled={confirmLoading}
+                  onClick={() => setConfirmItem(null)}
+                  className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={confirmLoading}
+                  className="px-4 py-2 bg-[#E85D26] text-white text-sm font-medium rounded-lg hover:bg-[#D14F1E] disabled:opacity-50 transition-colors"
+                >
+                  {confirmLoading ? 'Saving...' : 'Submit'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Scam Report Modal */}
+      {scamModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !scamSubmitting && setScamModal(null)}>
+          <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-4">Report Scam</h3>
+            {scamSuccess ? (
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-500 text-center">
+                {scamSuccess}
+              </div>
+            ) : (
+              <form onSubmit={submitScamReport} className="space-y-4">
+                <p className="text-sm text-gray-400">
+                  Your report will be visible to admins only.
+                </p>
+                {scamError && <p className="text-sm text-red-400">{scamError}</p>}
+                <textarea
+                  value={scamDescription}
+                  onChange={(e) => setScamDescription(e.target.value)}
+                  placeholder="Describe what happened..."
+                  className="w-full h-28 px-4 py-3 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:border-red-500 resize-none"
+                  required
+                />
+                <div className="flex gap-3 justify-end">
+                  <button
+                    type="button"
+                    disabled={scamSubmitting}
+                    onClick={() => setScamModal(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={scamSubmitting || !scamDescription.trim()}
+                    className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    {scamSubmitting ? 'Submitting...' : 'Submit Report'}
                   </button>
                 </div>
               </form>

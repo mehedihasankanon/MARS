@@ -101,21 +101,82 @@ exports.becomeSeller = async (req, res) => {
     );
 
     await client.query("COMMIT");
-
-    const jwt = require("jsonwebtoken");
-    const { JWT_SECRET } = require("../middleware/jwt.js");
-    const token = jwt.sign({ userId, role: "seller" }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
     res.json({
-      message: "You are now a seller! You can start listing products.",
-      token,
-      role: "seller",
+      message: "Seller request submitted. Waiting for admin approval before you can sell.",
+      seller_pending_approval: true,
     });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
+    res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};
+
+exports.getPendingSellers = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT s.Seller_ID,
+              s.Shop_Name,
+              s.Authorization_Date,
+              s.Approved_By_Admin_ID,
+              u.Username,
+              u.Email,
+              u.Created_At
+       FROM Sellers s
+       JOIN Users u ON u.User_ID = s.Seller_ID
+       WHERE s.Authorization_Date IS NULL
+       ORDER BY u.Created_At DESC`,
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching pending sellers:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+exports.approveSeller = async (req, res) => {
+  const { sellerId } = req.params;
+  const adminId = req.user.userId;
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const seller = await client.query(
+      "SELECT Authorization_Date FROM Sellers WHERE Seller_ID = $1",
+      [sellerId],
+    );
+    if (seller.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Seller request not found" });
+    }
+    if (seller.rows[0].authorization_date) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Seller already approved" });
+    }
+
+    await client.query(
+      `UPDATE Sellers
+       SET Approved_By_Admin_ID = $1,
+           Authorization_Date = CURRENT_DATE
+       WHERE Seller_ID = $2`,
+      [adminId, sellerId],
+    );
+
+    // Notify seller that they are approved
+    await client.query(
+      `INSERT INTO mars.Notifications (User_ID, Message, Notification_Type)
+       VALUES ($1, $2, $3)`,
+      [sellerId, "Your seller account has been approved by an admin. You can now list products.", "seller_approved"],
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Seller approved" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error approving seller:", err);
     res.status(500).json({ error: "Internal Server Error" });
   } finally {
     client.release();

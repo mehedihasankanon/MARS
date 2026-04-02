@@ -13,6 +13,10 @@ export default function AdminPage() {
   const [users, setUsers] = useState([]);           
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pendingSellers, setPendingSellers] = useState([]);
+  const [scamReports, setScamReports] = useState([]);
+  const [approvingSeller, setApprovingSeller] = useState(null);
+  const [updatingReport, setUpdatingReport] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
@@ -36,8 +40,14 @@ export default function AdminPage() {
 
     const fetchUsers = async () => {
       try {
-        const res = await api.get('/users');
-        setUsers(res.data);
+        const [usersRes, pendingRes, reportsRes] = await Promise.all([
+          api.get('/users'),
+          api.get('/users/seller-requests'),
+          api.get('/reports/scam'),
+        ]);
+        setUsers(usersRes.data);
+        setPendingSellers(pendingRes.data);
+        setScamReports(reportsRes.data);
       } catch (err) {
         console.error('Failed to fetch users:', err);
         setError('Failed to load users.');
@@ -48,6 +58,32 @@ export default function AdminPage() {
 
     fetchUsers();
   }, [user]);
+
+  const approveSeller = async (sellerId) => {
+    setApprovingSeller(sellerId);
+    try {
+      await api.post(`/users/seller-requests/${sellerId}/approve`);
+      const res = await api.get('/users/seller-requests');
+      setPendingSellers(res.data);
+    } catch (err) {
+      console.error('Failed to approve seller:', err);
+    } finally {
+      setApprovingSeller(null);
+    }
+  };
+
+  const updateScamStatus = async (reportId, status) => {
+    setUpdatingReport(reportId);
+    try {
+      await api.patch(`/reports/scam/${reportId}/status`, { status });
+      const res = await api.get('/reports/scam');
+      setScamReports(res.data);
+    } catch (err) {
+      console.error('Failed to update report:', err);
+    } finally {
+      setUpdatingReport(null);
+    }
+  };
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -152,6 +188,87 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+
+        {(pendingSellers.length > 0 || scamReports.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden">
+              <div className="px-6 py-4 bg-[#0D0D0D] border-b border-[#2A2A2A] flex items-center justify-between">
+                <h2 className="text-white font-bold">Seller Approval Requests</h2>
+                <span className="text-xs text-gray-500">{pendingSellers.length} pending</span>
+              </div>
+              {pendingSellers.length === 0 ? (
+                <div className="p-6 text-sm text-gray-500">No pending seller requests.</div>
+              ) : (
+                <div className="divide-y divide-[#1A1A1A]">
+                  {pendingSellers.map((s) => (
+                    <div key={s.seller_id} className="p-5 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-white text-sm font-medium">@{s.username}</p>
+                        <p className="text-xs text-gray-500">{s.email}</p>
+                        <p className="text-xs text-gray-600 mt-1">Shop: {s.shop_name || '—'}</p>
+                      </div>
+                      <button
+                        onClick={() => approveSeller(s.seller_id)}
+                        disabled={approvingSeller === s.seller_id}
+                        className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {approvingSeller === s.seller_id ? 'Approving...' : 'Approve'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden">
+              <div className="px-6 py-4 bg-[#0D0D0D] border-b border-[#2A2A2A] flex items-center justify-between">
+                <h2 className="text-white font-bold">Scam Reports</h2>
+                <span className="text-xs text-gray-500">{scamReports.length} total</span>
+              </div>
+              {scamReports.length === 0 ? (
+                <div className="p-6 text-sm text-gray-500">No scam reports.</div>
+              ) : (
+                <div className="divide-y divide-[#1A1A1A] max-h-[420px] overflow-y-auto">
+                  {scamReports.map((r) => (
+                    <div key={r.report_id} className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-white text-sm font-medium">
+                            Reporter: <span className="text-gray-300">@{r.reporter_username}</span>
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Accused seller: <span className="text-gray-300">{r.accused_seller_username || '—'}</span>
+                          </p>
+                          <p className="text-xs text-gray-600 mt-1">
+                            Order: {r.order_id ? r.order_id.slice(0, 8) : '—'} • Product: {r.product_id ? r.product_id.slice(0, 8) : '—'}
+                          </p>
+                        </div>
+                        <select
+                          value={r.status || 'Open'}
+                          onChange={(e) => updateScamStatus(r.report_id, e.target.value)}
+                          disabled={updatingReport === r.report_id}
+                          className="px-3 py-2 text-xs bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-gray-300"
+                        >
+                          <option value="Open">Open</option>
+                          <option value="Under Review">Under Review</option>
+                          <option value="Resolved">Resolved</option>
+                          <option value="Dismissed">Dismissed</option>
+                        </select>
+                      </div>
+                      <div className="mt-3 bg-[#0A0A0A] border border-[#1A1A1A] rounded-lg p-3">
+                        <p className="text-xs text-gray-500 mb-1">Description</p>
+                        <p className="text-sm text-gray-200 whitespace-pre-wrap">{r.description}</p>
+                      </div>
+                      <p className="text-[11px] text-gray-600 mt-2">
+                        {r.created_at ? new Date(r.created_at).toLocaleString() : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
 

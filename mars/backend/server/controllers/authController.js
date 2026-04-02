@@ -38,26 +38,32 @@ exports.registerUser = async (req, res) => {
     ]);
 
     if (role === "seller") {
-      await client.query("INSERT INTO sellers (seller_id) VALUES ($1)", [
-        user.user_id,
-      ]);
+      // Create a seller row, but keep it pending admin approval until Authorization_Date is set.
+      await client.query(
+        "INSERT INTO sellers (seller_id) VALUES ($1) ON CONFLICT (seller_id) DO NOTHING",
+        [user.user_id],
+      );
     }
 
     await client.query("COMMIT");
 
-    const token = jwt.sign(
-      { userId: user.user_id, role: role || "customer" },
-      JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    // Never issue a seller token at registration time; seller operation requires admin approval.
+    const effectiveRole = role === "seller" ? "customer" : (role || "customer");
+    const token = jwt.sign({ userId: user.user_id, role: effectiveRole }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
 
     // extract the password, set it into a dummy value,
     // and set the remaining into the safeUser object to be sent in the response
     // we could alternately write `password: ignored` and be done with it
     const { password: _, ...safeUser } = user;
-    res
-      .status(201)
-      .json({ message: "Login successful", token, user: safeUser, role });
+    res.status(201).json({
+      message: "Login successful",
+      token,
+      user: safeUser,
+      role: effectiveRole,
+      seller_pending_approval: role === "seller" ? true : undefined,
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);
@@ -94,6 +100,7 @@ exports.loginUser = async (req, res) => {
     }
 
     let role = "customer";
+    let seller_pending_approval = false;
 
     const adminCheck = await client.query(
       "SELECT * FROM admins WHERE admin_id = $1",
@@ -103,11 +110,16 @@ exports.loginUser = async (req, res) => {
       role = "admin";
     } else {
       const sellerCheck = await client.query(
-        "SELECT * FROM sellers WHERE seller_id = $1",
+        "SELECT Authorization_Date FROM sellers WHERE seller_id = $1",
         [user.user_id],
       );
       if (sellerCheck.rows.length > 0) {
-        role = "seller";
+        if (sellerCheck.rows[0].authorization_date) {
+          role = "seller";
+        } else {
+          role = "customer";
+          seller_pending_approval = true;
+        }
       }
     }
 
@@ -125,7 +137,7 @@ exports.loginUser = async (req, res) => {
     const { password: _, ...safeUser } = user;
     res
       .status(201)
-      .json({ message: "Login successful", token, user: safeUser, role });
+      .json({ message: "Login successful", token, user: safeUser, role, seller_pending_approval });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);

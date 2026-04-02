@@ -25,6 +25,7 @@ const shipmentRoutes = require("./routes/shipmentRoutes");
 const returnRoutes = require("./routes/returnRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use("/api/shipments", shipmentRoutes);
 app.use("/api/returns", returnRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/reports", reportRoutes);
 
 app.get("/api/health", async (req, res) => {
   try {

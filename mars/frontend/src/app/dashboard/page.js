@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
@@ -37,6 +37,7 @@ export default function DashboardPage() {
   const [sellerOrders, setSellerOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState(null);
+  const [deliveryIssues, setDeliveryIssues] = useState([]);
 
   const [sellerReturns, setSellerReturns] = useState([]);
   const [loadingReturns, setLoadingReturns] = useState(false);
@@ -61,6 +62,123 @@ export default function DashboardPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editFormError, setEditFormError] = useState('');
   const [editFormSuccess, setEditFormSuccess] = useState('');
+
+  const [productStockFilter, setProductStockFilter] = useState('all');
+  const [productSort, setProductSort] = useState('newest');
+
+  const [offerModalProduct, setOfferModalProduct] = useState(null);
+  const [productOffers, setProductOffers] = useState([]);
+  const [offerForm, setOfferForm] = useState({
+    offerPercent: '10',
+    startDate: '',
+    expiryDate: '',
+  });
+  const [offerLoading, setOfferLoading] = useState(false);
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [offerError, setOfferError] = useState('');
+
+  const filteredMyProducts = useMemo(() => {
+    let list = [...myProducts];
+    if (productStockFilter === 'in_stock') {
+      list = list.filter((p) => (Number(p.stock_quantity) || 0) > 0);
+    } else if (productStockFilter === 'out_of_stock') {
+      list = list.filter((p) => (Number(p.stock_quantity) || 0) <= 0);
+    }
+
+    const num = (v) => Number(v) || 0;
+
+    switch (productSort) {
+      case 'popular':
+        list.sort((a, b) => num(b.order_count) - num(a.order_count));
+        break;
+      case 'rating':
+        list.sort((a, b) => num(b.avg_rating) - num(a.avg_rating));
+        break;
+      case 'price_asc':
+        list.sort((a, b) => num(a.unit_price) - num(b.unit_price));
+        break;
+      case 'price_desc':
+        list.sort((a, b) => num(b.unit_price) - num(a.unit_price));
+        break;
+      case 'newest':
+      default:
+        list.sort(
+          (a, b) =>
+            new Date(b.adding_date || 0) - new Date(a.adding_date || 0),
+        );
+        break;
+    }
+    return list;
+  }, [myProducts, productStockFilter, productSort]);
+
+  const openOfferModal = async (product) => {
+    setOfferModalProduct(product);
+    setOfferError('');
+    const now = new Date();
+    const weekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const toLocal = (d) => {
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    setOfferForm({
+      offerPercent: '10',
+      startDate: toLocal(now),
+      expiryDate: toLocal(weekLater),
+    });
+    setOfferLoading(true);
+    try {
+      const res = await api.get(`/offers/product/${product.product_id}`);
+      setProductOffers(res.data);
+    } catch {
+      setProductOffers([]);
+    } finally {
+      setOfferLoading(false);
+    }
+  };
+
+  const closeOfferModal = () => {
+    setOfferModalProduct(null);
+    setProductOffers([]);
+    setOfferError('');
+  };
+
+  const handleCreateOffer = async (e) => {
+    e.preventDefault();
+    if (!offerModalProduct) return;
+    setOfferSubmitting(true);
+    setOfferError('');
+    try {
+      await api.post('/offers', {
+        productId: offerModalProduct.product_id,
+        offerPercent: parseFloat(offerForm.offerPercent),
+        startDate: new Date(offerForm.startDate).toISOString(),
+        expiryDate: new Date(offerForm.expiryDate).toISOString(),
+      });
+      const res = await api.get(`/offers/product/${offerModalProduct.product_id}`);
+      setProductOffers(res.data);
+      const prodRes = await api.get('/products');
+      setAllProducts(prodRes.data);
+      setMyProducts(prodRes.data.filter((p) => p.seller_name === user.username));
+    } catch (err) {
+      setOfferError(err.response?.data?.error || 'Failed to create offer');
+    } finally {
+      setOfferSubmitting(false);
+    }
+  };
+
+  const handleDeleteOffer = async (offerId) => {
+    if (!offerModalProduct) return;
+    try {
+      await api.delete(`/offers/${offerId}`);
+      const res = await api.get(`/offers/product/${offerModalProduct.product_id}`);
+      setProductOffers(res.data);
+      const prodRes = await api.get('/products');
+      setAllProducts(prodRes.data);
+      setMyProducts(prodRes.data.filter((p) => p.seller_name === user.username));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const openEditModal = (product) => {
     setEditFormError('');
@@ -185,8 +303,12 @@ export default function DashboardPage() {
     const fetchSellerOrders = async () => {
       setLoadingOrders(true);
       try {
-        const res = await api.get('/orders/seller-orders');
-        setSellerOrders(res.data);
+        const [ordersRes, issuesRes] = await Promise.all([
+          api.get('/orders/seller-orders'),
+          api.get('/orders/seller/delivery-issues'),
+        ]);
+        setSellerOrders(ordersRes.data);
+        setDeliveryIssues(issuesRes.data);
       } catch (err) {
         console.error('Failed to fetch seller orders:', err);
       } finally {
@@ -232,13 +354,23 @@ export default function DashboardPage() {
     setUpdatingOrder(orderId);
     try {
       await api.patch(`/orders/${orderId}/status`, { status: newStatus });
-      setSellerOrders((prev) =>
-        prev.map((o) =>
-          o.order_id === orderId ? { ...o, order_status: newStatus } : o
-        )
-      );
+      const res = await api.get('/orders/seller-orders');
+      setSellerOrders(res.data);
     } catch (err) {
       console.error('Failed to update order status:', err);
+    } finally {
+      setUpdatingOrder(null);
+    }
+  };
+
+  const handleItemStatusUpdate = async (orderId, productId, newStatus) => {
+    setUpdatingOrder(`${orderId}:${productId}`);
+    try {
+      await api.patch(`/orders/${orderId}/items/${productId}/status`, { status: newStatus });
+      const res = await api.get('/orders/seller-orders');
+      setSellerOrders(res.data);
+    } catch (err) {
+      console.error('Failed to update item status:', err);
     } finally {
       setUpdatingOrder(null);
     }
@@ -477,9 +609,53 @@ export default function DashboardPage() {
                 </button>
               </div>
             ) : (
+              <>
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-6">
+                <p className="text-sm text-gray-500">
+                  Showing <span className="text-gray-300 font-medium">{filteredMyProducts.length}</span> of{' '}
+                  <span className="text-gray-300 font-medium">{myProducts.length}</span> products
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <select
+                    value={productStockFilter}
+                    onChange={(e) => setProductStockFilter(e.target.value)}
+                    className="px-3 py-2 text-sm bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26]"
+                  >
+                    <option value="all">All stock</option>
+                    <option value="in_stock">In stock</option>
+                    <option value="out_of_stock">Out of stock</option>
+                  </select>
+                  <select
+                    value={productSort}
+                    onChange={(e) => setProductSort(e.target.value)}
+                    className="px-3 py-2 text-sm bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26]"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="popular">Most popular</option>
+                    <option value="rating">Highest rated</option>
+                    <option value="price_asc">Price: low to high</option>
+                    <option value="price_desc">Price: high to low</option>
+                  </select>
+                </div>
+              </div>
 
+              {filteredMyProducts.length === 0 ? (
+                <div className="text-center py-16 bg-[#111111] rounded-xl border border-[#2A2A2A]">
+                  <p className="text-gray-400 mb-2">No products match these filters.</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProductStockFilter('all');
+                      setProductSort('newest');
+                    }}
+                    className="text-sm text-[#E85D26] hover:text-[#D14F1E] font-medium"
+                  >
+                    Reset filters
+                  </button>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myProducts.map((product) => (
+                {filteredMyProducts.map((product) => (
                   <div
                     key={product.product_id}
                     className="group bg-[#111111] rounded-xl border border-[#2A2A2A] p-5 hover:border-[#E85D26]/50 transition-all"
@@ -520,9 +696,16 @@ export default function DashboardPage() {
                       </h3>
                     </Link>
 
-                    <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-[#E85D26]/10 text-[#E85D26] mb-3">
-                      {product.category_name}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                      <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-[#E85D26]/10 text-[#E85D26]">
+                        {product.category_name}
+                      </span>
+                      {Number(product.discount_percent) > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/30">
+                          {Number(product.discount_percent).toFixed(0)}% off
+                        </span>
+                      )}
+                    </div>
 
                     <div className="flex justify-between items-center">
                       <p className="text-[#F59E0B] font-bold text-lg">
@@ -539,7 +722,8 @@ export default function DashboardPage() {
                       {product.condition_state && (
                         <span>{product.condition_state}</span>
                       )}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap justify-end">
+                        <button type="button" onClick={(e) => { e.preventDefault(); openOfferModal(product); }} className="text-amber-400 hover:text-amber-300 font-medium transition-colors">Offers</button>
                         <button onClick={(e) => { e.preventDefault(); openEditModal(product); }} className="text-[#E85D26] hover:text-[#D14F1E] font-medium transition-colors">Edit</button>
                         <span>
                           {product.adding_date
@@ -551,6 +735,8 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
+              )}
+              </>
             )}
           </>
         )}
@@ -609,18 +795,6 @@ export default function DashboardPage() {
                           <span className={`px-3 py-1 text-xs font-medium rounded-full border ${statusClass}`}>
                             {order.order_status}
                           </span>
-                          <select
-                            value={order.order_status}
-                            onChange={(e) => handleStatusUpdate(order.order_id, e.target.value)}
-                            disabled={updatingOrder === order.order_id}
-                            className="px-3 py-1.5 text-xs bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#E85D26] disabled:opacity-50"
-                          >
-                            <option value="Pending">Pending</option>
-                            <option value="Processing">Processing</option>
-                            <option value="Shipped">Shipped</option>
-                            <option value="Delivered">Delivered</option>
-                            <option value="Cancelled">Cancelled</option>
-                          </select>
                         </div>
                       </div>
 
@@ -646,10 +820,27 @@ export default function DashboardPage() {
                                 {item.product_name}
                               </Link>
                               <span className="text-xs text-gray-500">× {item.quantity}</span>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full border ${statusColors[item.item_status] || 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                                {item.item_status || 'Pending'}
+                              </span>
                             </div>
-                            <span className="text-sm text-[#F59E0B] font-medium">
-                              ${parseFloat(item.net_price).toFixed(2)}
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <select
+                                value={item.item_status || 'Pending'}
+                                onChange={(e) => handleItemStatusUpdate(order.order_id, item.product_id, e.target.value)}
+                                disabled={updatingOrder === `${order.order_id}:${item.product_id}`}
+                                className="px-3 py-1.5 text-xs bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#E85D26] disabled:opacity-50"
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Processing">Processing</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="Cancelled">Cancelled</option>
+                              </select>
+                              <span className="text-sm text-[#F59E0B] font-medium">
+                                ${parseFloat(item.net_price).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -662,6 +853,40 @@ export default function DashboardPage() {
                     </div>
                   );
                 })}
+
+                {deliveryIssues.length > 0 && (
+                  <div className="mt-8 bg-[#111111] rounded-xl border border-[#2A2A2A] p-6">
+                    <h3 className="text-lg font-bold text-white mb-2">
+                      Delivery <span className="text-red-400">Issues</span>
+                    </h3>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Customer feedback when they confirm an item was not received properly.
+                    </p>
+                    <div className="space-y-3">
+                      {deliveryIssues.map((iss) => (
+                        <div key={iss.issue_id} className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-lg p-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <p className="text-sm text-white font-medium">
+                              {iss.product_name}{' '}
+                              <span className="text-gray-500 text-xs">
+                                • Order #{iss.order_id?.slice(0, 8)}
+                              </span>
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {iss.created_at ? new Date(iss.created_at).toLocaleString() : ''}
+                            </p>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Customer: <span className="text-gray-300">{iss.customer_name}</span>
+                          </p>
+                          {iss.feedback && (
+                            <p className="text-sm text-red-300 mt-2">{iss.feedback}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </>
@@ -1012,7 +1237,116 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
-      </div>
+
+        {offerModalProduct && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !offerSubmitting && closeOfferModal()}>
+            <div
+              className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">
+                  Offers — <span className="text-amber-400">{offerModalProduct.name}</span>
+                </h3>
+                <button type="button" onClick={closeOfferModal} className="text-gray-400 hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <p className="text-xs text-gray-500 mb-4">
+                Set a time-limited discount (%) on this product. Shoppers see the reduced price while the offer is active.
+              </p>
+
+              {offerError && (
+                <div className="mb-3 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg">{offerError}</div>
+              )}
+
+              <form onSubmit={handleCreateOffer} className="space-y-3 mb-6 pb-6 border-b border-[#2A2A2A]">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-1">
+                    <label className="block text-xs text-gray-400 mb-1">Discount %</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      max="100"
+                      step="0.01"
+                      required
+                      value={offerForm.offerPercent}
+                      onChange={(e) => setOfferForm((prev) => ({ ...prev, offerPercent: e.target.value }))}
+                      className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white text-sm"
+                    />
+                  </div>
+                  <div className="col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Start</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={offerForm.startDate}
+                        onChange={(e) => setOfferForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">End</label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={offerForm.expiryDate}
+                        onChange={(e) => setOfferForm((prev) => ({ ...prev, expiryDate: e.target.value }))}
+                        className="w-full px-3 py-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg text-white text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={offerSubmitting}
+                  className="w-full py-2.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {offerSubmitting ? 'Saving...' : 'Add offer'}
+                </button>
+              </form>
+
+              <h4 className="text-sm font-semibold text-gray-300 mb-2">Existing offers</h4>
+              {offerLoading ? (
+                <p className="text-sm text-gray-500">Loading...</p>
+              ) : productOffers.length === 0 ? (
+                <p className="text-sm text-gray-500">No offers yet.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {productOffers.map((o) => (
+                    <li
+                      key={o.offer_id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-[#0A0A0A] rounded-lg border border-[#1A1A1A]"
+                    >
+                      <div>
+                        <p className="text-sm text-white">
+                          <span className="text-amber-400 font-semibold">{Number(o.offer_percent).toFixed(1)}%</span>
+                          <span className={` ml-2 text-[10px] px-2 py-0.5 rounded-full ${o.is_active ? 'bg-green-500/15 text-green-400' : 'bg-gray-500/15 text-gray-400'}`}>
+                            {o.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {o.start_date ? new Date(o.start_date).toLocaleString() : ''} — {o.expiry_date ? new Date(o.expiry_date).toLocaleString() : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteOffer(o.offer_id)}
+                        className="text-xs text-red-400 hover:text-red-300 shrink-0"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Edit Product Modal */}
         {editModalProduct && (
@@ -1118,6 +1452,7 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+      </div>
     </div>
   );
 }

@@ -19,6 +19,7 @@ export default function RegisterPage() {
 
   const [error, setError] = useState("");            
   const [isLoading, setIsLoading] = useState(false);  
+  const [sellerAuthMessage, setSellerAuthMessage] = useState(false);
   const { register } = useAuth();                     
 
   const handleChange = (e) => {
@@ -43,8 +44,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-
-      await register({
+      const data = await register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
@@ -54,6 +54,9 @@ export default function RegisterPage() {
         role: formData.role,
       });
 
+      if (data?.seller_pending_approval) {
+        setSellerAuthMessage(true);
+      }
     } catch (err) {
 
       setError(
@@ -88,6 +91,12 @@ export default function RegisterPage() {
         {error && (
           <div className="bg-red-900/20 border border-red-800 text-red-400 px-4 py-3 rounded-lg text-sm">
             {error}
+          </div>
+        )}
+
+        {sellerAuthMessage && (
+          <div className="bg-emerald-900/20 border border-emerald-700/60 text-emerald-200 px-4 py-3 rounded-lg text-sm leading-relaxed">
+            Your seller authentication request is sent. You will be notified when approved.
           </div>
         )}
 
@@ -237,15 +246,28 @@ export default function RegisterPage() {
                 <span className="text-sm font-medium">Sell Products</span>
               </button>
             </div>
+            {formData.role === "seller" && !sellerAuthMessage && (
+              <p className="text-xs text-gray-500 mt-2">
+                Seller accounts require admin approval before you can list products.
+              </p>
+            )}
           </div>
 
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || sellerAuthMessage}
             className="w-full flex justify-center py-3 px-4 rounded-lg text-sm font-semibold text-white bg-[#E85D26] hover:bg-[#D14F1E] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E85D26] focus:ring-offset-[#111111] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-[#E85D26]/20"
           >
-            {isLoading ? "Creating account..." : "Create Account"}
+            {isLoading ? "Creating account..." : sellerAuthMessage ? "Account created" : "Create Account"}
           </button>
+
+          {sellerAuthMessage && (
+            <p className="text-center text-sm text-gray-400">
+              <Link href="/" className="text-[#E85D26] hover:text-[#FF7A45] font-medium">
+                Continue to home
+              </Link>
+            </p>
+          )}
         </form>
       </div>
     </div>
