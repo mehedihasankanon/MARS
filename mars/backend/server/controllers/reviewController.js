@@ -9,7 +9,7 @@ exports.getProductReviews = async (req, res) => {
               EXISTS (
                   SELECT 1 FROM Order_Items oi
                   JOIN Orders o ON oi.Order_ID = o.Order_ID
-                  WHERE o.Customer_ID = r.Customer_ID AND oi.Product_ID = r.Product_ID
+                  WHERE o.Customer_ID = r.Customer_ID AND oi.Product_ID = r.Product_ID AND o.Order_Status = 'Delivered'
               ) as verified
        FROM Reviews r
        JOIN Users u ON r.Customer_ID = u.User_ID
