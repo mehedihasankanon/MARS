@@ -117,3 +117,51 @@ exports.getPlatformStats = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+exports.getSellerStats = async (req, res) => {
+  try {
+    const sellerId = req.user.userId;
+    const result = await pool.query(`
+      WITH BasicStats AS (
+        SELECT 
+          COALESCE(SUM(oi.Quantity), 0) as total_products_sold,
+          COALESCE(SUM(oi.Net_Price), 0) as total_revenue,
+          COUNT(oi.Product_ID) as total_order_items
+        FROM Order_Items oi
+        JOIN Products p ON oi.Product_ID = p.Product_ID
+        JOIN Orders o ON oi.Order_ID = o.Order_ID
+        WHERE p.Seller_ID = $1 AND o.Order_Status != 'Cancelled'
+      ),
+      ReturnStats AS (
+        SELECT 
+          COALESCE(SUM(ri.Quantity), 0) as total_returned
+        FROM Return_Items ri
+        JOIN Returns r ON ri.Return_ID = r.Return_ID
+        JOIN Products p ON ri.Product_ID = p.Product_ID
+        WHERE p.Seller_ID = $1 AND r.Status = 'Approved'
+      ),
+      DeliveryStats AS (
+        SELECT 
+          COALESCE(SUM(CASE WHEN oi.Item_Status = 'Delivered' THEN oi.Quantity ELSE 0 END), 0) as total_delivered,
+          COALESCE(SUM(CASE WHEN oi.Item_Status IN ('Processing', 'Shipped', 'Delivered') THEN oi.Quantity ELSE 0 END), 0) as total_processed
+        FROM Order_Items oi
+        JOIN Products p ON oi.Product_ID = p.Product_ID
+        WHERE p.Seller_ID = $1
+      )
+      SELECT 
+        bs.total_products_sold,
+        bs.total_revenue,
+        rs.total_returned,
+        ds.total_delivered,
+        ds.total_processed,
+        CASE WHEN bs.total_products_sold > 0 THEN ROUND((rs.total_returned::numeric / bs.total_products_sold) * 100, 2) ELSE 0 END as return_percentage,
+        CASE WHEN ds.total_processed > 0 THEN ROUND((ds.total_delivered::numeric / ds.total_processed) * 100, 2) ELSE 0 END as successful_delivery_percentage
+      FROM BasicStats bs, ReturnStats rs, DeliveryStats ds
+    `, [sellerId]);
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching seller stats:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};

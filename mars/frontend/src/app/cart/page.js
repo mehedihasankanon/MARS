@@ -184,11 +184,11 @@ export default function CartPage() {
                       {Number(item.product?.discount_percent) > 0 &&
                         item.product?.original_price != null && (
                           <span className="text-sm text-gray-500 line-through mr-2">
-                            ${parseFloat(item.product.original_price).toFixed(2)}
+                            ৳{parseFloat(item.product.original_price).toFixed(2)}
                           </span>
                         )}
                       <span className="text-[#E85D26] font-semibold">
-                        ${parseFloat(item.product?.unit_price || 0).toFixed(2)} each
+                        ৳{parseFloat(item.product?.unit_price || 0).toFixed(2)} each
                         {Number(item.product?.discount_percent) > 0 && (
                           <span className="text-green-400 text-xs font-medium ml-2">
                             ({Number(item.product.discount_percent).toFixed(0)}% off)
@@ -227,7 +227,7 @@ export default function CartPage() {
 
                   <div className="text-right flex sm:flex-col items-center sm:items-end gap-3">
                     <span className="text-white font-semibold">
-                      ${parseFloat(item.net_price || 0).toFixed(2)}
+                      ৳{parseFloat(item.net_price || 0).toFixed(2)}
                     </span>
                     <button
                       onClick={() => handleRemoveItem(item.product_id)}
@@ -247,7 +247,7 @@ export default function CartPage() {
 
                 <div className="flex justify-between text-gray-400 mb-2">
                   <span>Subtotal ({cartItems.length} items)</span>
-                  <span className="text-white">${cartTotal.toFixed(2)}</span>
+                  <span className="text-white">৳{cartTotal.toFixed(2)}</span>
                 </div>
 
                 <div className="flex justify-between text-gray-400 mb-4">
@@ -258,7 +258,7 @@ export default function CartPage() {
                 <div className="border-t border-[#2A2A2A] pt-4 mb-6">
                   <div className="flex justify-between">
                     <span className="text-white font-bold text-lg">Total</span>
-                    <span className="text-[#E85D26] font-bold text-lg">${cartTotal.toFixed(2)}</span>
+                    <span className="text-[#E85D26] font-bold text-lg">৳{cartTotal.toFixed(2)}</span>
                   </div>
                 </div>
 

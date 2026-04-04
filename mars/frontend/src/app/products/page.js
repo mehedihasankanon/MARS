@@ -21,6 +21,7 @@ export default function ProductsPage() {
     searchParams.get("sellerName") || "",
   );
   const [sortBy, setSortBy] = useState("newest");
+  const [stockFilter, setStockFilter] = useState("all");
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -99,7 +100,23 @@ export default function ProductsPage() {
       if (selectedSeller) params.append("seller", selectedSeller);
 
       const res = await api.get(`/products?${params.toString()}`);
-      setProducts(res.data);
+      let filteredProducts = res.data;
+
+      // Apply stock filter
+      if (stockFilter === "in_stock") {
+        filteredProducts = filteredProducts.filter((p) => p.stock_quantity > 0);
+      } else if (stockFilter === "out_of_stock") {
+        filteredProducts = filteredProducts.filter((p) => p.stock_quantity === 0 || p.stock_quantity <= 0);
+      }
+
+      // Sort to show in-stock items first (always, regardless of other sorting)
+      filteredProducts.sort((a, b) => {
+        const aInStock = a.stock_quantity > 0 ? 1 : 0;
+        const bInStock = b.stock_quantity > 0 ? 1 : 0;
+        return bInStock - aInStock;
+      });
+
+      setProducts(filteredProducts);
       if (selectedSeller) {
         const sellerNameFromResults = res.data?.[0]?.seller_name;
         if (sellerNameFromResults) {
@@ -114,7 +131,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, sortBy, searchQuery, selectedSeller]);
+  }, [selectedCategory, sortBy, searchQuery, selectedSeller, stockFilter]);
 
   useEffect(() => {
     const debounce = setTimeout(fetchProducts, 300);
@@ -219,6 +236,16 @@ export default function ProductsPage() {
           </select>
 
           <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value)}
+            className="px-4 py-3 bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26] focus:border-[#E85D26] transition-colors cursor-pointer"
+          >
+            <option value="all">All Items</option>
+            <option value="in_stock">In Stock Only</option>
+            <option value="out_of_stock">Out of Stock</option>
+          </select>
+
+          <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="px-4 py-3 bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26] focus:border-[#E85D26] transition-colors cursor-pointer"
@@ -303,12 +330,12 @@ export default function ProductsPage() {
                     <div className="flex flex-col items-start">
                       {Number(product.discount_percent) > 0 && product.original_price != null && (
                         <span className="text-sm text-gray-500 line-through">
-                          ${parseFloat(product.original_price).toFixed(2)}
+                          ৳{parseFloat(product.original_price).toFixed(2)}
                         </span>
                       )}
                       <div className="flex items-baseline gap-2">
                         <span className="text-xl font-bold text-[#E85D26]">
-                          ${parseFloat(product.unit_price).toFixed(2)}
+                          ৳{parseFloat(product.unit_price).toFixed(2)}
                         </span>
                         {Number(product.discount_percent) > 0 && (
                           <span className="text-xs font-semibold text-green-400">

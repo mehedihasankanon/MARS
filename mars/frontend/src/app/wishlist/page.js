@@ -130,7 +130,7 @@ export default function WishlistPage() {
 
                   <div className="flex items-center justify-between mt-auto">
                     <span className="text-xl font-bold text-[#E85D26]">
-                      ${parseFloat(product.unit_price).toFixed(2)}
+                      ৳{parseFloat(product.unit_price).toFixed(2)}
                     </span>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                       product.stock_quantity > 0
