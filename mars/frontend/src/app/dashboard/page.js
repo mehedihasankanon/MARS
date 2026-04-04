@@ -44,6 +44,9 @@ export default function DashboardPage() {
   const [loadingReturns, setLoadingReturns] = useState(false);
   const [approvingReturn, setApprovingReturn] = useState(null);
 
+  const [sellerStats, setSellerStats] = useState(null);
+  const [loadingSellerStats, setLoadingSellerStats] = useState(false);
+
 
   const [imageModalProduct, setImageModalProduct] = useState(null);
   const [imageModalImages, setImageModalImages] = useState([]);
@@ -299,7 +302,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!tabParam) return;
-    const allowedTabs = ['products', 'orders', 'delivery-issues', 'returns', 'add'];
+    const allowedTabs = ['products', 'orders', 'delivery-issues', 'returns', 'sales', 'add'];
     if (allowedTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     }
@@ -357,6 +360,24 @@ export default function DashboardPage() {
     };
 
     fetchSellerReturns();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'seller' || activeTab !== 'sales') return;
+
+    const fetchSellerStats = async () => {
+      setLoadingSellerStats(true);
+      try {
+        const res = await api.get('/analytics/seller-stats');
+        setSellerStats(res.data);
+      } catch (err) {
+        console.error('Failed to fetch seller stats:', err);
+      } finally {
+        setLoadingSellerStats(false);
+      }
+    };
+
+    fetchSellerStats();
   }, [user, activeTab]);
 
   const handleApproveReturn = async (returnId) => {
@@ -604,6 +625,20 @@ export default function DashboardPage() {
             )}
           </button>
 
+          <button
+            onClick={() => setActiveTab('sales')}
+            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'sales'
+                ? 'text-[#E85D26]'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            My Sales
+            {activeTab === 'sales' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E85D26]" />
+            )}
+          </button>
+
 
           <button
             onClick={() => setActiveTab('add')}
@@ -620,6 +655,118 @@ export default function DashboardPage() {
           </button>
         </div>
 
+
+        {activeTab === 'sales' && (
+          <div className="space-y-6 pt-4">
+            <h2 className="text-2xl font-bold text-white mb-4">Sales Analytics</h2>
+            {loadingSellerStats ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="bg-[#111111] p-6 rounded-xl border border-[#2A2A2A] animate-pulse">
+                    <div className="h-4 bg-[#1A1A1A] rounded w-1/2 mb-3" />
+                    <div className="h-8 bg-[#1A1A1A] rounded w-3/4" />
+                  </div>
+                ))}
+              </div>
+            ) : sellerStats ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pb-8">
+                <div className="bg-[#111111] p-6 rounded-xl border border-[#2A2A2A]">
+                  <p className="text-sm text-gray-400 mb-1">Products Sold</p>
+                  <p className="text-3xl font-bold text-white">{sellerStats.total_products_sold}</p>
+                </div>
+                <div className="bg-[#111111] p-6 rounded-xl border border-[#2A2A2A]">
+                  <p className="text-sm text-gray-400 mb-1">Total Sales</p>
+                  <p className="text-3xl font-bold text-[#E85D26]">৳{parseFloat(sellerStats.total_revenue || 0).toFixed(2)}</p>
+                </div>
+                <div className="bg-[#111111] p-6 rounded-xl border border-[#2A2A2A]">
+                  <p className="text-sm text-gray-400 mb-1">Return Rate</p>
+                  <p className="text-3xl font-bold text-red-400">{sellerStats.return_percentage}%</p>
+                </div>
+                <div className="bg-[#111111] p-6 rounded-xl border border-[#2A2A2A]">
+                  <p className="text-sm text-gray-400 mb-1">Successful Delivery</p>
+                  <p className="text-3xl font-bold text-green-400">{sellerStats.successful_delivery_percentage}%</p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-400 bg-[#111111] p-6 rounded-xl border border-[#2A2A2A] text-center">No data available</div>
+            )}
+
+            {/* Product Contribution to Sales */}
+            <div className="mt-8 pt-8 border-t border-[#2A2A2A]">
+              <h3 className="text-2xl font-bold text-white mb-4">Product <span className="text-[#E85D26]">Contribution</span></h3>
+              {myProducts.length === 0 ? (
+                <div className="text-gray-500 bg-[#111111] p-6 rounded-xl border border-[#2A2A2A] text-center">
+                  No products to analyze
+                </div>
+              ) : (
+                <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-[#2A2A2A] bg-[#0A0A0A]/50">
+                          <th className="py-4 px-4 text-xs text-gray-500 uppercase tracking-wider font-semibold">Product</th>
+                          <th className="py-4 px-4 text-xs text-gray-500 uppercase tracking-wider font-semibold text-right">Sold</th>
+                          <th className="py-4 px-4 text-xs text-gray-500 uppercase tracking-wider font-semibold text-right">Revenue</th>
+                          <th className="py-4 px-4 text-xs text-gray-500 uppercase tracking-wider font-semibold text-right">% of Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const totalRevenue = parseFloat(sellerStats?.total_revenue || 0);
+                          const productsSorted = [...myProducts]
+                            .map(p => ({
+                              ...p,
+                              estimatedRevenue: (p.order_count || 0) * parseFloat(p.unit_price || 0)
+                            }))
+                            .sort((a, b) => b.estimatedRevenue - a.estimatedRevenue)
+                            .filter(p => p.order_count > 0);
+
+                          return productsSorted.length === 0 ? (
+                            <tr>
+                              <td colSpan="4" className="py-6 px-4 text-center text-gray-500">No sales data yet</td>
+                            </tr>
+                          ) : (
+                            productsSorted.map((product, idx) => {
+                              const revenue = product.estimatedRevenue;
+                              const percentage = totalRevenue > 0 ? ((revenue / totalRevenue) * 100).toFixed(1) : '0';
+                              return (
+                                <tr key={product.product_id} className="border-b border-[#1A1A1A] hover:bg-[#0A0A0A]/30 transition-colors">
+                                  <td className="py-4 px-4">
+                                    <div>
+                                      <p className="text-white font-medium text-sm">{product.name}</p>
+                                      <p className="text-xs text-gray-500 mt-1">ID: {product.product_id?.slice(0, 8)}...</p>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4 text-right">
+                                    <span className="text-white font-medium">{product.order_count || 0}</span>
+                                  </td>
+                                  <td className="py-4 px-4 text-right">
+                                    <span className="text-[#F59E0B] font-semibold">৳{revenue.toFixed(2)}</span>
+                                  </td>
+                                  <td className="py-4 px-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <div className="w-16 h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-gradient-to-r from-[#E85D26] to-[#F59E0B] rounded-full" 
+                                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-white font-medium text-sm w-12 text-right">{percentage}%</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          );
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {activeTab === 'products' && (
           <>
@@ -752,11 +899,11 @@ export default function DashboardPage() {
                       <div>
                         {Number(product.discount_percent) > 0 && product.original_price != null && (
                           <p className="text-sm text-gray-500 line-through">
-                            ${parseFloat(product.original_price).toFixed(2)}
+                            ৳{parseFloat(product.original_price).toFixed(2)}
                           </p>
                         )}
                         <p className="text-[#F59E0B] font-bold text-lg">
-                          ${parseFloat(product.unit_price).toFixed(2)}
+                          ৳{parseFloat(product.unit_price).toFixed(2)}
                           {Number(product.discount_percent) > 0 && (
                             <span className="text-xs font-semibold text-green-400 ml-2">
                               {Number(product.discount_percent).toFixed(0)}% off
@@ -892,7 +1039,7 @@ export default function DashboardPage() {
                                 <option value="Cancelled">Cancelled</option>
                               </select>
                               <span className="text-sm text-[#F59E0B] font-medium">
-                                ${parseFloat(item.net_price).toFixed(2)}
+                                ৳{parseFloat(item.net_price).toFixed(2)}
                               </span>
                             </div>
                           </div>
@@ -901,7 +1048,7 @@ export default function DashboardPage() {
 
                       <div className="mt-4 pt-3 border-t border-[#1A1A1A] flex justify-end">
                         <p className="text-lg font-bold text-white">
-                          Total: <span className="text-[#F59E0B]">${parseFloat(order.total_amount).toFixed(2)}</span>
+                          Total: <span className="text-[#F59E0B]">৳{parseFloat(order.total_amount).toFixed(2)}</span>
                         </p>
                       </div>
                     </div>
@@ -1055,7 +1202,7 @@ export default function DashboardPage() {
 
                       <div className="flex justify-end">
                         <p className="text-sm font-medium text-[#F59E0B]">
-                          Refund: ${parseFloat(ret.refund_amount).toFixed(2)}
+                          Refund: ৳{parseFloat(ret.refund_amount).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -1119,7 +1266,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="unitPrice" className="block text-sm font-medium text-gray-300 mb-1">
-                    Unit Price ($) <span className="text-red-400">*</span>
+                    Unit Price (৳) <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="number"

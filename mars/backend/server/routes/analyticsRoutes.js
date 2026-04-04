@@ -27,5 +27,11 @@ router.get(
   authorizeRoles("admin"),
   analyticsController.getPlatformStats,
 );
+router.get(
+  "/seller-stats",
+  authenticateToken,
+  authorizeRoles("seller"),
+  analyticsController.getSellerStats,
+);
 
 module.exports = router;

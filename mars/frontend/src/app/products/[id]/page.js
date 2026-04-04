@@ -466,10 +466,10 @@ export default function ProductDetailPage() {
 
             <div className="mb-6">
               {hasDiscount && originalPrice && (
-                <p className="text-lg text-gray-500 line-through mb-1">${originalPrice}</p>
+                <p className="text-lg text-gray-500 line-through mb-1">৳{originalPrice}</p>
               )}
               <p className="text-4xl font-bold text-[#E85D26] inline-block">
-                ${formattedPrice}
+                ৳{formattedPrice}
               </p>
               {hasDiscount && (
                 <span className="ml-3 text-sm font-semibold text-green-400 align-middle">

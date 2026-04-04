@@ -246,7 +246,7 @@ export default function CheckoutPage() {
                       <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                     </div>
                     <p className="text-[#F59E0B] font-medium">
-                      ${(parseFloat(item.unit_price || 0) * item.quantity).toFixed(2)}
+                      ৳{(parseFloat(item.unit_price || 0) * item.quantity).toFixed(2)}
                     </p>
                   </div>
                 ))}
@@ -442,17 +442,17 @@ export default function CheckoutPage() {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Subtotal ({cartItems.length} items)</span>
-                  <span className="text-gray-200">${subtotal.toFixed(2)}</span>
+                  <span className="text-gray-200">৳{subtotal.toFixed(2)}</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between text-sm">
                     <span className="text-green-400">Discount ({appliedCoupon.discount_percent}%)</span>
-                    <span className="text-green-400">-${discountAmount.toFixed(2)}</span>
+                    <span className="text-green-400">-৳{discountAmount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Delivery Fee</span>
-                  <span className="text-gray-200">${deliveryFee.toFixed(2)}</span>
+                  <span className="text-gray-200">৳{deliveryFee.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -460,7 +460,7 @@ export default function CheckoutPage() {
                 <div className="flex justify-between">
                   <span className="text-white font-medium">Total</span>
                   <span className="text-2xl font-bold text-[#E85D26]">
-                    ${total.toFixed(2)}
+                    ৳{total.toFixed(2)}
                   </span>
                 </div>
               </div>

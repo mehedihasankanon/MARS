@@ -83,7 +83,7 @@ export default function AnalyticsPage() {
                   { label: 'Total Users', value: platformStats.total_users, icon: '👤' },
                   { label: 'Total Products', value: platformStats.total_products, icon: '📦' },
                   { label: 'Total Orders', value: platformStats.total_orders, icon: '🛒' },
-                  { label: 'Revenue', value: `$${parseFloat(platformStats.total_revenue || 0).toLocaleString()}`, icon: '💰' },
+                  { label: 'Revenue', value: `৳${parseFloat(platformStats.total_revenue || 0).toLocaleString()}`, icon: '💰' },
                   { label: 'Avg Rating', value: platformStats.platform_avg_rating || 'N/A', icon: '⭐' },
                 ].map((stat, i) => (
                   <div key={i} className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-5 hover:border-[#E85D26]/30 transition-all">
@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <p className="text-[#F59E0B] font-bold">${parseFloat(seller.total_revenue || 0).toFixed(0)}</p>
+                          <p className="text-[#F59E0B] font-bold">৳{parseFloat(seller.total_revenue || 0).toFixed(0)}</p>
                           <p className="text-xs text-gray-500">Revenue</p>
                         </div>
                         <div>
@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-400">{p.seller_name}</td>
                           <td className="py-3 px-4 text-sm text-white font-medium text-right">{p.total_sold}</td>
-                          <td className="py-3 px-4 text-sm text-[#F59E0B] font-medium text-right">${parseFloat(p.total_revenue || 0).toFixed(2)}</td>
+                          <td className="py-3 px-4 text-sm text-[#F59E0B] font-medium text-right">৳{parseFloat(p.total_revenue || 0).toFixed(2)}</td>
                           <td className="py-3 px-4 text-sm text-white text-right">{p.avg_rating || 'N/A'} ⭐</td>
                         </tr>
                       ))}
@@ -199,7 +199,7 @@ export default function AnalyticsPage() {
                         </div>
                         <div>
                           <p className="text-gray-500">Revenue</p>
-                          <p className="text-[#F59E0B] font-medium">${parseFloat(cat.total_revenue || 0).toFixed(0)}</p>
+                          <p className="text-[#F59E0B] font-medium">৳{parseFloat(cat.total_revenue || 0).toFixed(0)}</p>
                         </div>
                         <div>
                           <p className="text-gray-500">Avg Rating</p>

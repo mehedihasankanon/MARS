@@ -364,9 +364,9 @@ export default function OrdersPage() {
                         return (
                           <>
                             {showStrike && (
-                              <p className="text-sm text-gray-500 line-through">${pre.toFixed(2)}</p>
+                              <p className="text-sm text-gray-500 line-through">৳{pre.toFixed(2)}</p>
                             )}
-                            <p className="text-lg font-bold text-[#E85D26]">${paid.toFixed(2)}</p>
+                            <p className="text-lg font-bold text-[#E85D26]">৳{paid.toFixed(2)}</p>
                             {order.coupon_id && showStrike && (
                               <p className="text-[10px] text-green-400 mt-0.5">After coupon</p>
                             )}
