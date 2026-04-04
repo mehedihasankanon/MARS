@@ -136,6 +136,49 @@ exports.getPendingSellers = async (req, res) => {
   }
 };
 
+exports.promoteToAdmin = async (req, res) => {
+  const { userId } = req.params;
+  const actingAdminId = req.user.userId;
+
+  if (userId === actingAdminId) {
+    return res.status(400).json({ error: "Cannot promote your own account" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userCheck = await client.query(
+      "SELECT User_ID FROM Users WHERE User_ID = $1",
+      [userId],
+    );
+    if (userCheck.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const adminCheck = await client.query(
+      "SELECT Admin_ID FROM Admins WHERE Admin_ID = $1",
+      [userId],
+    );
+    if (adminCheck.rows.length > 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "User is already an admin" });
+    }
+
+    await client.query("INSERT INTO Admins (Admin_ID) VALUES ($1)", [userId]);
+
+    await client.query("COMMIT");
+    res.json({ message: "User promoted to admin" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error promoting user to admin:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};
+
 exports.approveSeller = async (req, res) => {
   const { sellerId } = req.params;
   const adminId = req.user.userId;

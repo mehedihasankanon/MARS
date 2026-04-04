@@ -287,6 +287,18 @@ exports.confirmDelivery = async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [orderId, productId, customerId, sellerId, false, feedback || null],
       );
+
+      const productNameRes = await client.query(
+        "SELECT Name FROM Products WHERE Product_ID = $1",
+        [productId],
+      );
+      const productName = productNameRes.rows[0]?.name || "a product";
+      const msg = `Delivery issue: a customer reported they did not receive "${productName}" properly for order #${String(orderId).slice(0, 8)}. Check Delivery issues on your Orders tab.`;
+      await client.query(
+        `INSERT INTO mars.Notifications (User_ID, Message, Product_ID, Order_ID, Notification_Type)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [sellerId, msg, productId, orderId, "delivery_issue"],
+      );
     }
 
     // Mark matching notification as read (best-effort)

@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../../../database/db.js");
@@ -138,6 +139,86 @@ exports.loginUser = async (req, res) => {
     res
       .status(201)
       .json({ message: "Login successful", token, user: safeUser, role, seller_pending_approval });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  const email = (req.body.email || "").trim();
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  const client = await pool.connect();
+  try {
+    const found = await client.query(
+      "SELECT user_id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))",
+      [email],
+    );
+
+    const baseMessage = {
+      message:
+        "If an account exists for that email, use the reset link below to choose a new password.",
+    };
+
+    if (found.rows.length === 0) {
+      return res.json(baseMessage);
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
+    await client.query(
+      "UPDATE users SET password_reset_token = $1, password_reset_expires = $2 WHERE user_id = $3",
+      [token, expires, found.rows[0].user_id],
+    );
+
+    const baseUrl = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/$/, "");
+    const resetLink = `${baseUrl}/auth/reset-password?token=${encodeURIComponent(token)}`;
+
+    return res.json({ ...baseMessage, resetLink });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || typeof token !== "string") {
+    return res.status(400).json({ error: "Reset token is required" });
+  }
+  if (!newPassword || String(newPassword).length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const userRes = await client.query(
+      "SELECT user_id FROM users WHERE password_reset_token = $1 AND password_reset_expires > NOW()",
+      [token.trim()],
+    );
+    if (userRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Invalid or expired reset link. Request a new one." });
+    }
+
+    const hashedPassword = await bcrypt.hash(String(newPassword), 10);
+    await client.query(
+      "UPDATE users SET password = $1, password_reset_token = NULL, password_reset_expires = NULL WHERE user_id = $2",
+      [hashedPassword, userRes.rows[0].user_id],
+    );
+
+    await client.query("COMMIT");
+    return res.json({ message: "Password reset successfully. You can sign in now." });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error(err);

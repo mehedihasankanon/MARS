@@ -3,6 +3,8 @@ CREATE TABLE Users (
     Username VARCHAR(100) UNIQUE NOT NULL,
     Email VARCHAR(100) UNIQUE NOT NULL,
     Password VARCHAR(255) NOT NULL,
+    password_reset_token VARCHAR(128),
+    password_reset_expires TIMESTAMP,
     First_Name VARCHAR(50) NOT NULL,
     Last_Name VARCHAR(50),
     Profile_Picture VARCHAR(255),
@@ -148,6 +150,7 @@ CREATE TABLE Reviews (
 CREATE TABLE Coupons (
     Coupon_ID UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     Created_By_Admin_ID UUID,
+    coupon_code VARCHAR(64) UNIQUE,
     Discount_Percent DECIMAL(5, 2),
     Expiry_Date TIMESTAMP,
     FOREIGN KEY (Created_By_Admin_ID) REFERENCES Admins(Admin_ID)

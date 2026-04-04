@@ -42,12 +42,13 @@ export default function CheckoutPage() {
     setApplyingCoupon(true);
     
     try {
-      const res = await api.post('/coupons/validate', { coupon_id: couponCode.trim() });
+      const res = await api.post('/coupons/validate', { coupon_code: couponCode.trim() });
       setAppliedCoupon(res.data);
-      setCouponSuccess(`Applied! ${res.data.discount_percent}% off.`);
+      const label = res.data.coupon_code || 'Coupon';
+      setCouponSuccess(`Applied “${label}” — ${res.data.discount_percent}% off.`);
       setCouponCode('');
     } catch (err) {
-      setCouponError(err.response?.data?.error || 'Invalid coupon ID.');
+      setCouponError(err.response?.data?.error || 'Invalid coupon code.');
     } finally {
       setApplyingCoupon(false);
     }
@@ -409,7 +410,7 @@ export default function CheckoutPage() {
                 <form onSubmit={handleApplyCoupon} className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Enter Coupon ID"
+                    placeholder="Coupon code (e.g. SAVE20)"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
                     className="flex-1 px-4 py-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg text-white text-sm focus:outline-none focus:border-[#E85D26]"

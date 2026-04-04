@@ -90,7 +90,14 @@ exports.updateCartItem = async (req, res) => {
     }
 
     const priceResult = await client.query(
-      `SELECT Unit_Price, Stock_Quantity FROM Products WHERE Product_ID = $1`,
+      `SELECT p.Stock_Quantity,
+              (p.Unit_Price * (1 - COALESCE((
+                 SELECT MAX(po.Offer_Percent)
+                 FROM Product_Offers po
+                 WHERE po.Product_ID = p.Product_ID
+                   AND NOW() >= po.Start_Date AND NOW() <= po.Expiry_Date
+              ), 0) / 100.0)) AS effective_unit
+       FROM Products p WHERE p.Product_ID = $1`,
       [product_id],
     );
 
@@ -99,7 +106,7 @@ exports.updateCartItem = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    const price = priceResult.rows[0].unit_price;
+    const effectiveUnit = parseFloat(priceResult.rows[0].effective_unit);
     const stockQuantity = priceResult.rows[0].stock_quantity;
 
     if (quantity > stockQuantity) {
@@ -109,7 +116,7 @@ exports.updateCartItem = async (req, res) => {
       });
     }
 
-    const net_price = price * quantity;
+    const net_price = effectiveUnit * quantity;
 
     const updateQuery = await client.query(
       `UPDATE Cart_Items

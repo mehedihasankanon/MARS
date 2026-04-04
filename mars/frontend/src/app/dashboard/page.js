@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [updatingOrder, setUpdatingOrder] = useState(null);
   const [deliveryIssues, setDeliveryIssues] = useState([]);
+  const [loadingDeliveryIssues, setLoadingDeliveryIssues] = useState(false);
 
   const [sellerReturns, setSellerReturns] = useState([]);
   const [loadingReturns, setLoadingReturns] = useState(false);
@@ -243,21 +244,27 @@ export default function DashboardPage() {
       return;
     }
 
-    if (user.role !== 'seller' && user.role !== 'admin') {
+    if (user.role === 'admin') {
+      router.replace('/admin');
+      return;
+    }
+
+    if (user.role !== 'seller') {
       router.push('/');
       return;
     }
   }, [user, authLoading]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role !== 'seller') return;
 
     const fetchData = async () => {
       try {
-        const [prodRes, catRes, ordersRes] = await Promise.all([
+        const [prodRes, catRes, ordersRes, issuesRes] = await Promise.all([
           api.get('/products'),
           api.get('/categories'),
           api.get('/orders/seller-orders'),
+          api.get('/orders/seller/delivery-issues'),
         ]);
 
         const all = prodRes.data;
@@ -275,6 +282,7 @@ export default function DashboardPage() {
         setCategories(catList);
 
         setSellerOrders(ordersRes.data);
+        setDeliveryIssues(issuesRes.data);
 
         if (catList.length > 0 && !form.categoryId) {
           setForm((prev) => ({ ...prev, categoryId: catList[0].id }));
@@ -291,24 +299,20 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!tabParam) return;
-    const allowedTabs = ['products', 'orders', 'returns', 'add'];
+    const allowedTabs = ['products', 'orders', 'delivery-issues', 'returns', 'add'];
     if (allowedTabs.includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
 
   useEffect(() => {
-    if (!user || activeTab !== 'orders') return;
+    if (!user || user.role !== 'seller' || activeTab !== 'orders') return;
 
     const fetchSellerOrders = async () => {
       setLoadingOrders(true);
       try {
-        const [ordersRes, issuesRes] = await Promise.all([
-          api.get('/orders/seller-orders'),
-          api.get('/orders/seller/delivery-issues'),
-        ]);
+        const ordersRes = await api.get('/orders/seller-orders');
         setSellerOrders(ordersRes.data);
-        setDeliveryIssues(issuesRes.data);
       } catch (err) {
         console.error('Failed to fetch seller orders:', err);
       } finally {
@@ -320,7 +324,25 @@ export default function DashboardPage() {
   }, [user, activeTab]);
 
   useEffect(() => {
-    if (!user || activeTab !== 'returns') return;
+    if (!user || user.role !== 'seller' || activeTab !== 'delivery-issues') return;
+
+    const fetchIssues = async () => {
+      setLoadingDeliveryIssues(true);
+      try {
+        const issuesRes = await api.get('/orders/seller/delivery-issues');
+        setDeliveryIssues(issuesRes.data);
+      } catch (err) {
+        console.error('Failed to fetch delivery issues:', err);
+      } finally {
+        setLoadingDeliveryIssues(false);
+      }
+    };
+
+    fetchIssues();
+  }, [user, activeTab]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'seller' || activeTab !== 'returns') return;
 
     const fetchSellerReturns = async () => {
       setLoadingReturns(true);
@@ -510,7 +532,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex border-b border-[#2A2A2A] mb-8">
+        <div className="flex flex-wrap border-b border-[#2A2A2A] mb-8 gap-y-1">
           <button
             onClick={() => setActiveTab('products')}
             className={`px-6 py-3 text-sm font-medium transition-colors relative ${
@@ -540,6 +562,25 @@ export default function DashboardPage() {
               </span>
             )}
             {activeTab === 'orders' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E85D26]" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('delivery-issues')}
+            className={`px-6 py-3 text-sm font-medium transition-colors relative ${
+              activeTab === 'delivery-issues'
+                ? 'text-[#E85D26]'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Delivery issues
+            {deliveryIssues.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-red-500/20 text-red-400 rounded-full">
+                {deliveryIssues.length}
+              </span>
+            )}
+            {activeTab === 'delivery-issues' && (
               <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E85D26]" />
             )}
           </button>
@@ -707,10 +748,22 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    <div className="flex justify-between items-center">
-                      <p className="text-[#F59E0B] font-bold text-lg">
-                        ${parseFloat(product.unit_price).toFixed(2)}
-                      </p>
+                    <div className="flex justify-between items-center gap-2">
+                      <div>
+                        {Number(product.discount_percent) > 0 && product.original_price != null && (
+                          <p className="text-sm text-gray-500 line-through">
+                            ${parseFloat(product.original_price).toFixed(2)}
+                          </p>
+                        )}
+                        <p className="text-[#F59E0B] font-bold text-lg">
+                          ${parseFloat(product.unit_price).toFixed(2)}
+                          {Number(product.discount_percent) > 0 && (
+                            <span className="text-xs font-semibold text-green-400 ml-2">
+                              {Number(product.discount_percent).toFixed(0)}% off
+                            </span>
+                          )}
+                        </p>
+                      </div>
                       <p className={`text-sm ${product.stock_quantity > 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {product.stock_quantity > 0
                           ? `${product.stock_quantity} in stock`
@@ -753,17 +806,18 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-            ) : sellerOrders.length === 0 ? (
-              <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
-                <span className="text-6xl block mb-4">📦</span>
-                <h2 className="text-2xl font-bold text-white mb-2">No orders yet</h2>
-                <p className="text-gray-400">
-                  When customers order your products, they will appear here.
-                </p>
-              </div>
             ) : (
               <div className="space-y-4">
-                {sellerOrders.map((order) => {
+                {sellerOrders.length === 0 ? (
+                  <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
+                    <span className="text-6xl block mb-4">📦</span>
+                    <h2 className="text-2xl font-bold text-white mb-2">No orders yet</h2>
+                    <p className="text-gray-400">
+                      When customers order your products, they will appear here.
+                    </p>
+                  </div>
+                ) : (
+                sellerOrders.map((order) => {
                   const statusColors = {
                     Pending: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
                     Processing: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
@@ -852,41 +906,63 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   );
-                })}
-
-                {deliveryIssues.length > 0 && (
-                  <div className="mt-8 bg-[#111111] rounded-xl border border-[#2A2A2A] p-6">
-                    <h3 className="text-lg font-bold text-white mb-2">
-                      Delivery <span className="text-red-400">Issues</span>
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-4">
-                      Customer feedback when they confirm an item was not received properly.
-                    </p>
-                    <div className="space-y-3">
-                      {deliveryIssues.map((iss) => (
-                        <div key={iss.issue_id} className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-lg p-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <p className="text-sm text-white font-medium">
-                              {iss.product_name}{' '}
-                              <span className="text-gray-500 text-xs">
-                                • Order #{iss.order_id?.slice(0, 8)}
-                              </span>
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {iss.created_at ? new Date(iss.created_at).toLocaleString() : ''}
-                            </p>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Customer: <span className="text-gray-300">{iss.customer_name}</span>
-                          </p>
-                          {iss.feedback && (
-                            <p className="text-sm text-red-300 mt-2">{iss.feedback}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                })
                 )}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab === 'delivery-issues' && (
+          <>
+            {loadingDeliveryIssues ? (
+              <div className="space-y-4">
+                {[...Array(2)].map((_, i) => (
+                  <div key={i} className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6 animate-pulse">
+                    <div className="h-5 bg-[#1A1A1A] rounded w-1/3 mb-3" />
+                    <div className="h-4 bg-[#1A1A1A] rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : deliveryIssues.length === 0 ? (
+              <div className="text-center py-20 bg-[#111111] rounded-xl border border-[#2A2A2A]">
+                <span className="text-6xl block mb-4">✓</span>
+                <h2 className="text-2xl font-bold text-white mb-2">No delivery issues</h2>
+                <p className="text-gray-400">
+                  When a customer reports a problem during delivery confirmation, it will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-6">
+                <h3 className="text-lg font-bold text-white mb-2">
+                  Delivery <span className="text-red-400">Issues</span>
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Customer feedback when they confirm an item was not received properly.
+                </p>
+                <div className="space-y-3">
+                  {deliveryIssues.map((iss) => (
+                    <div key={iss.issue_id} className="bg-[#0A0A0A] border border-[#1A1A1A] rounded-lg p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <p className="text-sm text-white font-medium">
+                          {iss.product_name}{' '}
+                          <span className="text-gray-500 text-xs">
+                            • Order #{iss.order_id?.slice(0, 8)}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {iss.created_at ? new Date(iss.created_at).toLocaleString() : ''}
+                        </p>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Customer: <span className="text-gray-300">{iss.customer_name}</span>
+                      </p>
+                      {iss.feedback && (
+                        <p className="text-sm text-red-300 mt-2">{iss.feedback}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -957,6 +1033,25 @@ export default function DashboardPage() {
                         <p className="text-sm text-gray-400 mb-1">Reason</p>
                         <p className="text-white text-sm">{ret.reason}</p>
                       </div>
+
+                      {Array.isArray(ret.image_urls) && ret.image_urls.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-400 mb-2">Customer photos</p>
+                          <div className="flex flex-wrap gap-2">
+                            {ret.image_urls.map((url, i) => (
+                              <a
+                                key={`${ret.return_id}-${i}`}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-20 h-20 rounded-lg border border-[#2A2A2A] overflow-hidden bg-[#0A0A0A] shrink-0"
+                              >
+                                <img src={url} alt="" className="w-full h-full object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="flex justify-end">
                         <p className="text-sm font-medium text-[#F59E0B]">

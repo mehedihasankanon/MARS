@@ -283,6 +283,9 @@ export default function ProductDetailPage() {
 
   const inStock = product.stock_quantity > 0;
   const formattedPrice = parseFloat(product.unit_price).toFixed(2);
+  const originalPrice =
+    product.original_price != null ? parseFloat(product.original_price).toFixed(2) : null;
+  const hasDiscount = Number(product.discount_percent) > 0;
   const isOwnProduct = user && product.seller_name === user.username;
 
   return (
@@ -461,9 +464,19 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            <p className="text-4xl font-bold text-[#E85D26] mb-6">
-              ${formattedPrice}
-            </p>
+            <div className="mb-6">
+              {hasDiscount && originalPrice && (
+                <p className="text-lg text-gray-500 line-through mb-1">${originalPrice}</p>
+              )}
+              <p className="text-4xl font-bold text-[#E85D26] inline-block">
+                ${formattedPrice}
+              </p>
+              {hasDiscount && (
+                <span className="ml-3 text-sm font-semibold text-green-400 align-middle">
+                  {Number(product.discount_percent).toFixed(0)}% off
+                </span>
+              )}
+            </div>
 
             {product.description && (
               <div className="mb-6">

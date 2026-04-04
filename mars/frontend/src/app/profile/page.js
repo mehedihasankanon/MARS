@@ -532,28 +532,28 @@ export default function ProfilePage() {
             )}
 
             {(user.role === 'seller' || user.role === 'admin') && (
-              <>
-                <Link
-                  href="/cart"
-                  className="flex items-center gap-4 p-4 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] hover:border-[#E85D26]/40 transition-all group"
-                >
-                  <span className="text-2xl"></span>
-                  <div>
-                    <p className="text-white font-medium group-hover:text-[#E85D26] transition-colors">Shopping Cart</p>
-                    <p className="text-gray-500 text-sm">View your cart</p>
-                  </div>
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="flex items-center gap-4 p-4 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] hover:border-[#E85D26]/40 transition-all group"
-                >
-                  <span className="text-2xl"></span>
-                  <div>
-                    <p className="text-white font-medium group-hover:text-[#E85D26] transition-colors">Seller Dashboard</p>
-                    <p className="text-gray-500 text-sm">Manage your products</p>
-                  </div>
-                </Link>
-              </>
+              <Link
+                href="/cart"
+                className="flex items-center gap-4 p-4 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] hover:border-[#E85D26]/40 transition-all group"
+              >
+                <span className="text-2xl"></span>
+                <div>
+                  <p className="text-white font-medium group-hover:text-[#E85D26] transition-colors">Shopping Cart</p>
+                  <p className="text-gray-500 text-sm">View your cart</p>
+                </div>
+              </Link>
+            )}
+            {user.role === 'seller' && (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-4 p-4 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] hover:border-[#E85D26]/40 transition-all group"
+              >
+                <span className="text-2xl"></span>
+                <div>
+                  <p className="text-white font-medium group-hover:text-[#E85D26] transition-colors">Seller Dashboard</p>
+                  <p className="text-gray-500 text-sm">Manage your products</p>
+                </div>
+              </Link>
             )}
 
             <Link

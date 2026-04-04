@@ -19,10 +19,11 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push('/auth/login'); return; }
-  }, [user, authLoading]);
+    if (user.role !== 'admin') { router.replace('/'); return; }
+  }, [user, authLoading, router]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role !== 'admin') return;
     const fetchAll = async () => {
       setLoading(true);
       try {
@@ -45,7 +46,7 @@ export default function AnalyticsPage() {
     fetchAll();
   }, [user]);
 
-  if (authLoading || !user) {
+  if (authLoading || !user || user.role !== 'admin') {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[#E85D26] border-t-transparent rounded-full animate-spin" />

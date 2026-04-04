@@ -299,10 +299,24 @@ export default function ProductsPage() {
                     </p>
                   )}
 
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-xl font-bold text-[#E85D26]">
-                      ${parseFloat(product.unit_price).toFixed(2)}
-                    </span>
+                  <div className="flex items-center justify-between mt-auto gap-2 flex-wrap">
+                    <div className="flex flex-col items-start">
+                      {Number(product.discount_percent) > 0 && product.original_price != null && (
+                        <span className="text-sm text-gray-500 line-through">
+                          ${parseFloat(product.original_price).toFixed(2)}
+                        </span>
+                      )}
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-bold text-[#E85D26]">
+                          ${parseFloat(product.unit_price).toFixed(2)}
+                        </span>
+                        {Number(product.discount_percent) > 0 && (
+                          <span className="text-xs font-semibold text-green-400">
+                            {Number(product.discount_percent).toFixed(0)}% off
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                     <span
                       className={`text-xs font-medium px-2 py-1 rounded-full ${

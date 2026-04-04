@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [orders, setOrders] = useState([]);       
@@ -60,11 +61,13 @@ export default function OrdersPage() {
   const [confirmFeedback, setConfirmFeedback] = useState('');
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [confirmError, setConfirmError] = useState('');
+  const [confirmSuccess, setConfirmSuccess] = useState('');
 
   const handleSubmitDeliveryConfirm = async (e) => {
     e.preventDefault();
     if (!confirmItem) return;
     setConfirmError('');
+    setConfirmSuccess('');
     setConfirmLoading(true);
     try {
       await api.post(
@@ -86,9 +89,14 @@ export default function OrdersPage() {
         })
       );
 
-      setConfirmItem(null);
+      setConfirmSuccess('Thanks! Your delivery confirmation was saved.');
       setConfirmFeedback('');
       setConfirmReceivedOk(true);
+      router.replace(pathname || '/orders');
+      setTimeout(() => {
+        setConfirmItem(null);
+        setConfirmSuccess('');
+      }, 2000);
     } catch (err) {
       setConfirmError(err.response?.data?.error || 'Failed to save confirmation.');
     } finally {
@@ -175,17 +183,20 @@ export default function OrdersPage() {
   useEffect(() => {
     if (!orders || orders.length === 0) return;
     const qOrder = searchParams.get('order');
-    if (qOrder) {
-      const exists = orders.some((o) => o.order_id === qOrder);
-      if (exists) {
-        const qProduct = searchParams.get('product');
-        if (qProduct) {
-          setConfirmItem({ orderId: qOrder, productId: qProduct });
-          setConfirmReceivedOk(true);
-          setConfirmFeedback('');
-        }
-      }
-    }
+    const qProduct = searchParams.get('product');
+    if (!qOrder || !qProduct) return;
+
+    const order = orders.find((o) => o.order_id === qOrder);
+    if (!order) return;
+
+    const item = order.items?.find((it) => it.product_id === qProduct);
+    if (!item || item.item_status !== 'Delivered' || item.delivered_confirmed) return;
+
+    setConfirmItem({ orderId: qOrder, productId: qProduct });
+    setConfirmReceivedOk(true);
+    setConfirmFeedback('');
+    setConfirmError('');
+    setConfirmSuccess('');
   }, [orders, searchParams]);
 
   const getStatusStyle = (status) => {
@@ -344,9 +355,24 @@ export default function OrdersPage() {
                   <div className="text-right flex flex-col justify-between items-end">
                     <div>
                       <p className="text-xs text-gray-500">Total</p>
-                      <p className="text-lg font-bold text-[#E85D26]">
-                        ${parseFloat(order.total_amount || 0).toFixed(2)}
-                      </p>
+                      {(() => {
+                        const pre = parseFloat(order.total_amount || 0);
+                        const paid = parseFloat(
+                          order.discounted_net_price != null ? order.discounted_net_price : order.total_amount || 0,
+                        );
+                        const showStrike = pre > paid + 0.009;
+                        return (
+                          <>
+                            {showStrike && (
+                              <p className="text-sm text-gray-500 line-through">${pre.toFixed(2)}</p>
+                            )}
+                            <p className="text-lg font-bold text-[#E85D26]">${paid.toFixed(2)}</p>
+                            {order.coupon_id && showStrike && (
+                              <p className="text-[10px] text-green-400 mt-0.5">After coupon</p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     {['Processing', 'Shipped', 'Delivered'].includes(order.order_status) && (
                       <button 
@@ -382,7 +408,7 @@ export default function OrdersPage() {
                         .map((it) => (
                           <button
                             key={it.product_id}
-                            onClick={() => { setConfirmItem({ orderId: order.order_id, productId: it.product_id }); setConfirmError(''); setConfirmReceivedOk(true); setConfirmFeedback(''); }}
+                            onClick={() => { setConfirmItem({ orderId: order.order_id, productId: it.product_id }); setConfirmError(''); setConfirmSuccess(''); setConfirmReceivedOk(true); setConfirmFeedback(''); }}
                             className="px-3 py-1.5 text-xs bg-purple-600/20 text-purple-300 border border-purple-600/30 rounded-lg hover:bg-purple-600/30 transition-colors"
                           >
                             Confirm item #{it.product_id?.slice(0, 6)}
@@ -522,12 +548,18 @@ export default function OrdersPage() {
 
       {/* Delivery Confirmation Modal */}
       {confirmItem && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !confirmLoading && setConfirmItem(null)}>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !confirmLoading && !confirmSuccess && setConfirmItem(null)}>
           <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-white mb-4">Confirm Delivery</h3>
             <p className="text-sm text-gray-400 mb-4">
               Confirm whether you received this item properly. If not, your feedback will be shared with the seller.
             </p>
+            {confirmSuccess ? (
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-center text-sm">
+                {confirmSuccess}
+              </div>
+            ) : (
+            <>
             {confirmError && <p className="text-sm text-red-400 mb-3">{confirmError}</p>}
             <form onSubmit={handleSubmitDeliveryConfirm} className="space-y-4">
               <div className="flex gap-3">
@@ -582,6 +614,8 @@ export default function OrdersPage() {
                 </button>
               </div>
             </form>
+            </>
+            )}
           </div>
         </div>
       )}

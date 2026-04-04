@@ -180,9 +180,22 @@ export default function CartPage() {
                     >
                       {item.product?.name || 'Product'}
                     </Link>
-                    <p className="text-[#E85D26] font-semibold mt-1">
-                      ${parseFloat(item.product?.unit_price || 0).toFixed(2)} each
-                    </p>
+                    <div className="mt-1">
+                      {Number(item.product?.discount_percent) > 0 &&
+                        item.product?.original_price != null && (
+                          <span className="text-sm text-gray-500 line-through mr-2">
+                            ${parseFloat(item.product.original_price).toFixed(2)}
+                          </span>
+                        )}
+                      <span className="text-[#E85D26] font-semibold">
+                        ${parseFloat(item.product?.unit_price || 0).toFixed(2)} each
+                        {Number(item.product?.discount_percent) > 0 && (
+                          <span className="text-green-400 text-xs font-medium ml-2">
+                            ({Number(item.product.discount_percent).toFixed(0)}% off)
+                          </span>
+                        )}
+                      </span>
+                    </div>
                     {item.product?.stock_quantity != null && (
                       <p className="text-xs mt-1 text-gray-500">
                         {item.product.stock_quantity - item.quantity > 0

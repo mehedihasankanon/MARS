@@ -26,6 +26,12 @@ router.get(
   authorizeRoles("admin"),
   userController.getAllUsers,
 );
+router.post(
+  "/:userId/promote-admin",
+  authenticateToken,
+  authorizeRoles("admin"),
+  userController.promoteToAdmin,
+);
 router.get("/:id", authenticateToken, userController.getUserById);
 
 module.exports = router;

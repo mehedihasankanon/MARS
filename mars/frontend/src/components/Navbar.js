@@ -88,6 +88,10 @@ export default function Navbar() {
   
     if (type === "order" && n.order_id) {
       href = `/dashboard?tab=orders&order=${n.order_id}`;
+    } else if (type === "delivery_issue" && n.order_id) {
+      href = `/dashboard?tab=delivery-issues`;
+    } else if (type === "return_request" && n.order_id) {
+      href = `/dashboard?tab=returns`;
     } else if (type === "delivery_confirm" && n.order_id && n.product_id) {
       href = `/orders?order=${n.order_id}&product=${n.product_id}`;
     } else if (n.product_id) {
@@ -100,6 +104,8 @@ export default function Navbar() {
     else if (type === "question") badge = "Question";
     else if (type === "review") badge = "Review";
     else if (type === "delivery_confirm") badge = "Delivery";
+    else if (type === "delivery_issue") badge = "Delivery issue";
+    else if (type === "return_request") badge = "Return";
     else if (type === "seller_approved") badge = "Seller";
   
     return { type, href, badge };
@@ -184,8 +190,12 @@ export default function Navbar() {
                                     ? "💬"
                                     : meta.type === "review"
                                       ? "⭐"
-                                      : meta.type === "delivery_confirm"
+                                        : meta.type === "delivery_confirm"
                                         ? "📦"
+                                        : meta.type === "delivery_issue"
+                                          ? "⚠️"
+                                          : meta.type === "return_request"
+                                            ? "↩️"
                                         : meta.type === "seller_approved"
                                           ? "✅"
                                       : "🔔";
@@ -197,8 +207,12 @@ export default function Navbar() {
                                     ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
                                     : meta.type === "review"
                                       ? "bg-green-500/10 text-green-400 border-green-500/30"
-                                      : meta.type === "delivery_confirm"
+                                        : meta.type === "delivery_confirm"
                                         ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                        : meta.type === "delivery_issue"
+                                          ? "bg-red-500/10 text-red-400 border-red-500/30"
+                                          : meta.type === "return_request"
+                                            ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
                                         : meta.type === "seller_approved"
                                           ? "bg-green-500/10 text-green-400 border-green-500/30"
                                       : "bg-gray-500/10 text-gray-400 border-gray-500/20";
@@ -295,7 +309,7 @@ export default function Navbar() {
                     {user.first_name || user.username}
                   </span>
                 </Link>
-                {(user.role === "seller" || user.role === "admin") && (
+                {user.role === "seller" && (
                   <Link
                     href="/dashboard"
                     className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith("/dashboard") ? "text-white bg-[#F59E0B]" : "text-[#F59E0B] hover:bg-[#F59E0B]/10"} border border-[#F59E0B]/30 rounded-lg transition-colors`}
@@ -311,12 +325,14 @@ export default function Navbar() {
                     Admin
                   </Link>
                 )}
-                <Link
-                  href="/analytics"
-                  className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith("/analytics") ? "text-white bg-[#E85D26]" : "text-gray-300 hover:text-[#E85D26]"} rounded-lg transition-colors`}
-                >
-                  Analytics
-                </Link>
+                {user.role === "admin" && (
+                  <Link
+                    href="/analytics"
+                    className={`px-3 py-1.5 text-sm font-medium ${pathname?.startsWith("/analytics") ? "text-white bg-[#E85D26]" : "text-gray-300 hover:text-[#E85D26]"} rounded-lg transition-colors`}
+                  >
+                    Analytics
+                  </Link>
+                )}
                 <button
                   onClick={logout}
                   className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-red-400 transition-colors"
@@ -391,11 +407,14 @@ export default function Navbar() {
                 <MobileNavLink href="/orders" label="Orders" />
                 <MobileNavLink href="/wishlist" label="Wishlist" />
                 <MobileNavLink href="/profile" label="Profile" />
-                {(user.role === "seller" || user.role === "admin") && (
+                {user.role === "seller" && (
                   <MobileNavLink href="/dashboard" label="Dashboard" />
                 )}
                 {user.role === "admin" && (
                   <MobileNavLink href="/admin" label="Admin Panel" />
+                )}
+                {user.role === "admin" && (
+                  <MobileNavLink href="/analytics" label="Analytics" />
                 )}
               </>
             )}

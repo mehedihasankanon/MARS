@@ -41,13 +41,13 @@ exports.getAllProducts = async (req, res) => {
             COALESCE(
               (SELECT po.Offer_Percent 
                FROM Product_Offers po 
-               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               WHERE po.Product_ID = p.Product_ID AND NOW() >= po.Start_Date AND NOW() <= po.Expiry_Date 
                ORDER BY po.Offer_Percent DESC LIMIT 1), 0
             ) as discount_percent,
             (p.Unit_Price * (1 - COALESCE(
               (SELECT po.Offer_Percent 
                FROM Product_Offers po 
-               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               WHERE po.Product_ID = p.Product_ID AND NOW() >= po.Start_Date AND NOW() <= po.Expiry_Date 
                ORDER BY po.Offer_Percent DESC LIMIT 1), 0
             ) / 100.0)) as unit_price,
             c.Name as category_name, u.Username as seller_name,
@@ -83,13 +83,13 @@ exports.getProductById = async (req, res) => {
             COALESCE(
               (SELECT po.Offer_Percent 
                FROM Product_Offers po 
-               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               WHERE po.Product_ID = p.Product_ID AND NOW() >= po.Start_Date AND NOW() <= po.Expiry_Date 
                ORDER BY po.Offer_Percent DESC LIMIT 1), 0
             ) as discount_percent,
             (p.Unit_Price * (1 - COALESCE(
               (SELECT po.Offer_Percent 
                FROM Product_Offers po 
-               WHERE po.Product_ID = p.Product_ID AND CURRENT_DATE BETWEEN po.Start_Date AND po.Expiry_Date 
+               WHERE po.Product_ID = p.Product_ID AND NOW() >= po.Start_Date AND NOW() <= po.Expiry_Date 
                ORDER BY po.Offer_Percent DESC LIMIT 1), 0
             ) / 100.0)) as unit_price,
             c.Name as category_name, u.Username as seller_name,
