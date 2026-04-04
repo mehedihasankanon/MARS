@@ -1,6 +1,7 @@
-# ADVANCED QUERIES (total - 17)
+# ADVANCED QUERIES (total - 18)
 
 ### 1. `getTopSellers`
+
 ```sql
 SELECT
   u.Username AS seller_name,
@@ -32,6 +33,7 @@ LIMIT
 ```
 
 ### 2. `getBestSellingProducts`
+
 ```sql
 SELECT
   p.Product_ID AS product_id,
@@ -72,6 +74,7 @@ LIMIT
 ```
 
 ### 3. `getCategoryAnalytics`
+
 ```sql
 SELECT
   c.Category_ID AS category_id,
@@ -113,36 +116,38 @@ ORDER BY
 ```
 
 ### 4. `getPlatformStats`
+
 ```sql
 SELECT
   (SELECT COUNT(*) FROM Users) AS total_users,
   (SELECT COUNT(*) FROM Sellers) AS total_sellers,
   (SELECT COUNT(*) FROM Products) AS total_products,
   (
-    SELECT COUNT(*) FROM Orders 
+    SELECT COUNT(*) FROM Orders
     WHERE Order_Status != 'Cancelled'
   ) AS total_orders,
   (
-    SELECT COALESCE(SUM(Total_Amount), 0) FROM Orders 
+    SELECT COALESCE(SUM(Total_Amount), 0) FROM Orders
     WHERE Order_Status != 'Cancelled'
   ) AS total_revenue,
   (SELECT COUNT(*) FROM Reviews) AS total_reviews,
   (SELECT ROUND(AVG(Rating), 2) FROM Reviews) AS platform_avg_rating,
   (
-    SELECT COUNT(*) FROM Orders 
+    SELECT COUNT(*) FROM Orders
     WHERE Order_Status = 'Pending'
   ) AS pending_orders,
   (
-    SELECT COUNT(*) FROM Orders 
+    SELECT COUNT(*) FROM Orders
     WHERE Order_Status = 'Delivered'
   ) AS delivered_orders,
   (
-    SELECT COUNT(*) FROM Returns 
+    SELECT COUNT(*) FROM Returns
     WHERE Status = 'Pending'
   ) AS pending_returns;
 ```
 
 ### 5. `getCartItems`
+
 ```sql
 SELECT
   c.*,
@@ -166,6 +171,7 @@ GROUP BY
 ```
 
 ### 6. `getMyOrders`
+
 ```sql
 SELECT
   o.*,
@@ -197,6 +203,7 @@ ORDER BY
 ```
 
 ### 7. `getSellerOrders`
+
 ```sql
 SELECT
   o.Order_ID,
@@ -239,11 +246,15 @@ ORDER BY
 ```
 
 ### 8. `updateOrderStatus`
+
 **Atomic Cancellation:**
+
 ```sql
 CALL mars.cancel_order($1, $2);
 ```
+
 **Status Update Logic:**
+
 ```sql
 -- Authorization Check
 SELECT
@@ -283,6 +294,7 @@ VALUES
 ```
 
 ### 9. `updateOrderItemStatus`
+
 ```sql
 -- Ownership Check
 SELECT
@@ -319,6 +331,7 @@ VALUES
 ```
 
 ### 10. `confirmDelivery`
+
 ```sql
 -- Update Confirmation
 UPDATE
@@ -354,6 +367,7 @@ WHERE
 ```
 
 ### 11. `getSellerDeliveryIssues`
+
 ```sql
 SELECT
   di.*,
@@ -372,7 +386,9 @@ LIMIT
 ```
 
 ### 12. `getAllProducts`
-*(Note: This query is dynamically constructed based on filters like category, search, and seller.)*
+
+_(Note: This query is dynamically constructed based on filters like category, search, and seller.)_
+
 ```sql
 SELECT
   p.Product_ID,
@@ -468,6 +484,7 @@ FROM
 ```
 
 ### 13. `getProductById`
+
 ```sql
 SELECT
   p.Product_ID,
@@ -555,6 +572,7 @@ WHERE
 ```
 
 ### 14. `getSellerReturns`
+
 ```sql
 SELECT
   r.Return_ID AS return_id,
@@ -597,6 +615,7 @@ ORDER BY
 ```
 
 ### 15. `getProductReviews`
+
 ```sql
 SELECT
   r.Review_ID AS review_id,
@@ -626,6 +645,7 @@ ORDER BY
 ```
 
 ### 16. `getAllUsers`
+
 ```sql
 SELECT
   u.User_ID,
@@ -651,6 +671,7 @@ ORDER BY
 ```
 
 ### 17. `getProfile`
+
 ```sql
 SELECT
   u.User_ID,
@@ -677,13 +698,52 @@ WHERE
   u.User_ID = $1;
 ```
 
+### 18. `getSellerStats`
 
+```sql
+WITH BasicStats AS (
+  SELECT
+    COALESCE(SUM(oi.Quantity), 0) as total_products_sold,
+    COALESCE(SUM(oi.Net_Price), 0) as total_revenue,
+    COUNT(oi.Product_ID) as total_order_items
+  FROM Order_Items oi
+  JOIN Products p ON oi.Product_ID = p.Product_ID
+  JOIN Orders o ON oi.Order_ID = o.Order_ID
+  WHERE p.Seller_ID = $1 AND o.Order_Status != 'Cancelled'
+),
+ReturnStats AS (
+  SELECT
+    COALESCE(SUM(ri.Quantity), 0) as total_returned
+  FROM Return_Items ri
+  JOIN Returns r ON ri.Return_ID = r.Return_ID
+  JOIN Products p ON ri.Product_ID = p.Product_ID
+  WHERE p.Seller_ID = $1 AND r.Status = 'Approved'
+),
+DeliveryStats AS (
+  SELECT
+    COALESCE(SUM(CASE WHEN oi.Item_Status = 'Delivered' THEN oi.Quantity ELSE 0 END), 0) as total_delivered,
+    COALESCE(SUM(CASE WHEN oi.Item_Status IN ('Processing', 'Shipped', 'Delivered') THEN oi.Quantity ELSE 0 END), 0) as total_processed
+  FROM Order_Items oi
+  JOIN Products p ON oi.Product_ID = p.Product_ID
+  WHERE p.Seller_ID = $1
+)
+SELECT
+  bs.total_products_sold,
+  bs.total_revenue,
+  rs.total_returned,
+  ds.total_delivered,
+  ds.total_processed,
+  CASE WHEN bs.total_products_sold > 0 THEN ROUND((rs.total_returned::numeric / bs.total_products_sold) * 100, 2) ELSE 0 END as return_percentage,
+  CASE WHEN ds.total_processed > 0 THEN ROUND((ds.total_delivered::numeric / ds.total_processed) * 100, 2) ELSE 0 END as successful_delivery_percentage
+FROM BasicStats bs, ReturnStats rs, DeliveryStats ds;
+```
 
 ---
 
 # DATABASE FUNCTIONS, PROCEDURES, AND TRIGGERS (total - 10)
 
 ### Function: `add_to_cart`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.add_to_cart(
     p_customer_id UUID,
@@ -746,6 +806,7 @@ $$;
 ```
 
 ### Function: `get_product_stats`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.get_product_stats(p_product_id UUID)
 RETURNS TABLE (
@@ -757,7 +818,7 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         COALESCE(AVG(r.Rating)::DECIMAL(3,2), 0.00),
         COUNT(DISTINCT r.Review_ID),
         COALESCE((SELECT SUM(oi.Quantity) FROM mars.Order_Items oi WHERE oi.Product_ID = p_product_id), 0)
@@ -768,6 +829,7 @@ $$;
 ```
 
 ### Function: `notify_seller_on_order`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.notify_seller_on_order()
 RETURNS TRIGGER
@@ -796,6 +858,7 @@ $$;
 ```
 
 ### Function: `notify_seller_on_question`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.notify_seller_on_question()
 RETURNS TRIGGER
@@ -823,6 +886,7 @@ $$;
 ```
 
 ### Function: `notify_seller_on_review`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.notify_seller_on_review()
 RETURNS TRIGGER
@@ -850,6 +914,7 @@ $$;
 ```
 
 ### Function: `recompute_order_status`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.recompute_order_status(p_order_id UUID)
 RETURNS VOID
@@ -895,6 +960,7 @@ $$;
 ```
 
 ### Function: `request_return_returning`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.request_return_returning(
   p_order_id UUID,
@@ -945,6 +1011,7 @@ $$;
 ```
 
 ### Function: `trg_recompute_order_status`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.trg_recompute_order_status()
 RETURNS TRIGGER
@@ -958,6 +1025,7 @@ $$;
 ```
 
 ### Function: `update_seller_rating`
+
 ```sql
 CREATE OR REPLACE FUNCTION mars.update_seller_rating()
 RETURNS TRIGGER
@@ -992,6 +1060,7 @@ $$;
 ```
 
 ### Procedure: `approve_return`
+
 ```sql
 CREATE OR REPLACE PROCEDURE mars.approve_return(
     p_return_id UUID
@@ -1015,19 +1084,19 @@ BEGIN
     -- Return the Stock Quantities loop
     FOR r_item IN SELECT Product_ID, Quantity FROM mars.Return_Items WHERE Return_ID = p_return_id
     LOOP
-        UPDATE mars.Products 
-        SET Stock_Quantity = Stock_Quantity + r_item.Quantity 
+        UPDATE mars.Products
+        SET Stock_Quantity = Stock_Quantity + r_item.Quantity
         WHERE Product_ID = r_item.Product_ID;
     END LOOP;
 
     -- Nullify Payments
-    UPDATE mars.Payments 
-    SET Payment_Status = 'Refunded' 
+    UPDATE mars.Payments
+    SET Payment_Status = 'Refunded'
     WHERE Order_ID = v_order_id;
 
     -- Update Order Status
-    UPDATE mars.Orders 
-    SET Order_Status = 'Returned' 
+    UPDATE mars.Orders
+    SET Order_Status = 'Returned'
     WHERE Order_ID = v_order_id;
 
 END;
@@ -1035,6 +1104,7 @@ $$;
 ```
 
 ### Procedure: `cancel_order`
+
 ```sql
 CREATE OR REPLACE PROCEDURE mars.cancel_order(
     p_order_id UUID,
@@ -1068,7 +1138,7 @@ BEGIN
     -- Restore stock for each item
     FOR r_item IN SELECT Product_ID, Quantity FROM mars.Order_Items WHERE Order_ID = p_order_id
     LOOP
-        UPDATE mars.Products 
+        UPDATE mars.Products
         SET Stock_Quantity = Stock_Quantity + r_item.Quantity
         WHERE Product_ID = r_item.Product_ID;
     END LOOP;
@@ -1081,6 +1151,7 @@ $$;
 ```
 
 ### Procedure: `place_order`
+
 ```sql
 CREATE OR REPLACE PROCEDURE mars.place_order(
     p_customer_id UUID,
@@ -1189,10 +1260,11 @@ $$;
 ```
 
 ### Procedure: `request_return`
+
 ```sql
 CREATE OR REPLACE PROCEDURE mars.request_return(
-    p_order_id UUID, 
-    p_customer_id UUID, 
+    p_order_id UUID,
+    p_customer_id UUID,
     p_reason TEXT
 )
 LANGUAGE plpgsql
@@ -1218,13 +1290,13 @@ BEGIN
 
     -- Copy all Order Items into the Return Items ledger
     INSERT INTO mars.Return_Items (Return_ID, Product_ID, Quantity)
-    SELECT v_return_id, Product_ID, Quantity 
-    FROM mars.Order_Items 
+    SELECT v_return_id, Product_ID, Quantity
+    FROM mars.Order_Items
     WHERE Order_ID = p_order_id;
 
     -- Flag the Order status
-    UPDATE mars.Orders 
-    SET Order_Status = 'Return Pending' 
+    UPDATE mars.Orders
+    SET Order_Status = 'Return Pending'
     WHERE Order_ID = p_order_id;
 
 END;
@@ -1232,6 +1304,7 @@ $$;
 ```
 
 ### Trigger: `trg_notify_seller_on_order`
+
 ```sql
 CREATE TRIGGER trg_notify_seller_on_order
 AFTER INSERT ON mars.Order_Items
@@ -1240,6 +1313,7 @@ EXECUTE FUNCTION mars.notify_seller_on_order();
 ```
 
 ### Trigger: `trg_notify_seller_on_question`
+
 ```sql
 CREATE TRIGGER trg_notify_seller_on_question
 AFTER INSERT ON mars.Questions
@@ -1248,6 +1322,7 @@ EXECUTE FUNCTION mars.notify_seller_on_question();
 ```
 
 ### Trigger: `trg_notify_seller_on_review`
+
 ```sql
 CREATE TRIGGER trg_notify_seller_on_review
 AFTER INSERT ON mars.Reviews
@@ -1256,6 +1331,7 @@ EXECUTE FUNCTION mars.notify_seller_on_review();
 ```
 
 ### Trigger: `trg_recompute_order_status`
+
 ```sql
 CREATE TRIGGER trg_recompute_order_status
 AFTER UPDATE OF Item_Status ON mars.Order_Items
@@ -1264,10 +1340,10 @@ EXECUTE FUNCTION mars.trg_recompute_order_status();
 ```
 
 ### Trigger: `trg_update_seller_rating`
+
 ```sql
 CREATE TRIGGER trg_update_seller_rating
 AFTER INSERT OR DELETE ON mars.Reviews
 FOR EACH ROW
 EXECUTE FUNCTION mars.update_seller_rating();
 ```
-
