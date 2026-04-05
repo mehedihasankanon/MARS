@@ -28,12 +28,24 @@ exports.getAllProducts = async (req, res) => {
       paramIndex++;
     }
     
+    if (sort === "offers") {
+      whereClause += whereClause ? " AND " : "WHERE ";
+      whereClause += `EXISTS (
+        SELECT 1
+        FROM Product_Offers po
+        WHERE po.Product_ID = p.Product_ID
+          AND NOW() >= po.Start_Date
+          AND NOW() <= po.Expiry_Date
+      )`;
+    }
+
     let orderClause = "ORDER BY p.Adding_Date DESC";
     if (sort === "price_asc") orderClause = "ORDER BY p.Unit_Price ASC";
     else if (sort === "price_desc") orderClause = "ORDER BY p.Unit_Price DESC";
     else if (sort === "popularity") orderClause = "ORDER BY order_count DESC, avg_rating DESC";
     else if (sort === "rating") orderClause = "ORDER BY avg_rating DESC, review_count DESC";
     else if (sort === "newest") orderClause = "ORDER BY p.Adding_Date DESC";
+    else if (sort === "offers") orderClause = "ORDER BY discount_percent DESC, p.Adding_Date DESC";
 
     const result = await pool.query(
       `SELECT p.Product_ID, p.Seller_ID, p.Category_ID, p.Name, p.Description, p.Adding_Date, p.Stock_Quantity, p.Condition_State,

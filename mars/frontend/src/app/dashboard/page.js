@@ -92,6 +92,10 @@ export default function DashboardPage() {
     const num = (v) => Number(v) || 0;
 
     switch (productSort) {
+      case 'offers':
+        list = list.filter((p) => num(p.discount_percent) > 0);
+        list.sort((a, b) => num(b.discount_percent) - num(a.discount_percent));
+        break;
       case 'popular':
         list.sort((a, b) => num(b.order_count) - num(a.order_count));
         break;
@@ -114,6 +118,38 @@ export default function DashboardPage() {
     }
     return list;
   }, [myProducts, productStockFilter, productSort]);
+
+  const deliveredContributionProducts = useMemo(() => {
+    const byProduct = new Map();
+
+    sellerOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        if (
+          item.item_status !== 'Delivered' ||
+          item.delivered_confirmed !== true ||
+          item.has_delivery_issue === true
+        ) {
+          return;
+        }
+
+        const productId = item.product_id;
+        const existing = byProduct.get(productId) || {
+          product_id: productId,
+          product_name: item.product_name || 'Unknown product',
+          total_sold: 0,
+          total_revenue: 0,
+        };
+
+        existing.total_sold += Number(item.quantity) || 0;
+        existing.total_revenue += Number(item.net_price) || 0;
+        byProduct.set(productId, existing);
+      });
+    });
+
+    return Array.from(byProduct.values())
+      .filter((p) => p.total_sold > 0)
+      .sort((a, b) => b.total_revenue - a.total_revenue);
+  }, [sellerOrders]);
 
   const openOfferModal = async (product) => {
     setOfferModalProduct(product);
@@ -694,9 +730,9 @@ export default function DashboardPage() {
             {/* Product Contribution to Sales */}
             <div className="mt-8 pt-8 border-t border-[#2A2A2A]">
               <h3 className="text-2xl font-bold text-white mb-4">Product <span className="text-[#E85D26]">Contribution</span></h3>
-              {myProducts.length === 0 ? (
+              {deliveredContributionProducts.length === 0 ? (
                 <div className="text-gray-500 bg-[#111111] p-6 rounded-xl border border-[#2A2A2A] text-center">
-                  No products to analyze
+                  No confirmed delivered product sales to analyze
                 </div>
               ) : (
                 <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden">
@@ -711,54 +747,38 @@ export default function DashboardPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(() => {
+                        {deliveredContributionProducts.map((product) => {
                           const totalRevenue = parseFloat(sellerStats?.total_revenue || 0);
-                          const productsSorted = [...myProducts]
-                            .map(p => ({
-                              ...p,
-                              estimatedRevenue: (p.order_count || 0) * parseFloat(p.unit_price || 0)
-                            }))
-                            .sort((a, b) => b.estimatedRevenue - a.estimatedRevenue)
-                            .filter(p => p.order_count > 0);
-
-                          return productsSorted.length === 0 ? (
-                            <tr>
-                              <td colSpan="4" className="py-6 px-4 text-center text-gray-500">No sales data yet</td>
+                          const revenue = product.total_revenue;
+                          const percentage = totalRevenue > 0 ? ((revenue / totalRevenue) * 100).toFixed(1) : '0';
+                          return (
+                            <tr key={product.product_id} className="border-b border-[#1A1A1A] hover:bg-[#0A0A0A]/30 transition-colors">
+                              <td className="py-4 px-4">
+                                <div>
+                                  <p className="text-white font-medium text-sm">{product.product_name}</p>
+                                  <p className="text-xs text-gray-500 mt-1">ID: {product.product_id?.slice(0, 8)}...</p>
+                                </div>
+                              </td>
+                              <td className="py-4 px-4 text-right">
+                                <span className="text-white font-medium">{product.total_sold}</span>
+                              </td>
+                              <td className="py-4 px-4 text-right">
+                                <span className="text-[#F59E0B] font-semibold">৳{revenue.toFixed(2)}</span>
+                              </td>
+                              <td className="py-4 px-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <div className="w-16 h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-[#E85D26] to-[#F59E0B] rounded-full" 
+                                      style={{ width: `${Math.min(percentage, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-white font-medium text-sm w-12 text-right">{percentage}%</span>
+                                </div>
+                              </td>
                             </tr>
-                          ) : (
-                            productsSorted.map((product, idx) => {
-                              const revenue = product.estimatedRevenue;
-                              const percentage = totalRevenue > 0 ? ((revenue / totalRevenue) * 100).toFixed(1) : '0';
-                              return (
-                                <tr key={product.product_id} className="border-b border-[#1A1A1A] hover:bg-[#0A0A0A]/30 transition-colors">
-                                  <td className="py-4 px-4">
-                                    <div>
-                                      <p className="text-white font-medium text-sm">{product.name}</p>
-                                      <p className="text-xs text-gray-500 mt-1">ID: {product.product_id?.slice(0, 8)}...</p>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    <span className="text-white font-medium">{product.order_count || 0}</span>
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    <span className="text-[#F59E0B] font-semibold">৳{revenue.toFixed(2)}</span>
-                                  </td>
-                                  <td className="py-4 px-4 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                      <div className="w-16 h-1.5 bg-[#1A1A1A] rounded-full overflow-hidden">
-                                        <div 
-                                          className="h-full bg-gradient-to-r from-[#E85D26] to-[#F59E0B] rounded-full" 
-                                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                                        />
-                                      </div>
-                                      <span className="text-white font-medium text-sm w-12 text-right">{percentage}%</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })
                           );
-                        })()}
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -819,6 +839,7 @@ export default function DashboardPage() {
                     className="px-3 py-2 text-sm bg-[#111111] border border-[#2A2A2A] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#E85D26]"
                   >
                     <option value="newest">Newest</option>
+                    <option value="offers">Offers</option>
                     <option value="popular">Most popular</option>
                     <option value="rating">Highest rated</option>
                     <option value="price_asc">Price: low to high</option>

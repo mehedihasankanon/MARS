@@ -255,6 +255,7 @@ export default function ProductsPage() {
             <option value="price_desc">Price: High to Low</option>
             <option value="popularity">Most Popular</option>
             <option value="rating">Highest Rated</option>
+            <option value="offers">Offers</option>
           </select>
         </div>
 

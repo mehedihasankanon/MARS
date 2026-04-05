@@ -129,8 +129,16 @@ exports.getSellerStats = async (req, res) => {
           COUNT(oi.Product_ID) as total_order_items
         FROM Order_Items oi
         JOIN Products p ON oi.Product_ID = p.Product_ID
-        JOIN Orders o ON oi.Order_ID = o.Order_ID
-        WHERE p.Seller_ID = $1 AND o.Order_Status != 'Cancelled'
+        WHERE p.Seller_ID = $1
+          AND oi.Item_Status = 'Delivered'
+          AND oi.Delivered_Confirmed = TRUE
+          AND NOT EXISTS (
+            SELECT 1
+            FROM mars.Delivery_Issues di
+            WHERE di.Order_ID = oi.Order_ID
+              AND di.Product_ID = oi.Product_ID
+              AND di.Received_OK = FALSE
+          )
       ),
       ReturnStats AS (
         SELECT 

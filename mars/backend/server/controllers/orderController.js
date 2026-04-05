@@ -50,7 +50,14 @@ exports.getSellerOrders = async (req, res) => {
           'net_price', oi.Net_Price,
           'unit_price', pr.Unit_Price,
           'item_status', oi.Item_Status,
-          'delivered_confirmed', oi.Delivered_Confirmed
+          'delivered_confirmed', oi.Delivered_Confirmed,
+          'has_delivery_issue', EXISTS (
+            SELECT 1
+            FROM mars.Delivery_Issues di
+            WHERE di.Order_ID = oi.Order_ID
+              AND di.Product_ID = oi.Product_ID
+              AND di.Received_OK = FALSE
+          )
         )) as items,
         p.Payment_Method as payment_method,
         p.Payment_Status as payment_status
@@ -93,8 +100,18 @@ exports.updateOrderStatus = async (req, res) => {
   try {
     if (status === "Cancelled") {
       // Use the DB procedure for atomic cancellation (stock restore + payment void + shipment log)
-      await pool.query("CALL mars.cancel_order($1, $2)", [orderId, req.user.userId]);
-      return res.json({ message: "Order cancelled successfully" });
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("CALL mars.cancel_order($1, $2)", [orderId, req.user.userId]);
+        await client.query("COMMIT");
+        return res.json({ message: "Order cancelled successfully" });
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      } finally {
+        client.release();
+      }
     }
 
     // For non-cancellation updates, keep lightweight SQL
@@ -346,11 +363,13 @@ exports.placeOrder = async (req, res) => {
   const customerId = req.user.userId;
   const { Items, addressId, couponId, deliveryFee, paymentMethod } = req.body;
 
+  const client = await pool.connect();
   try {
+    await client.query("BEGIN");
     // If Items are passed (from frontend), we need to add them to cart first
     // since the procedure works from the cart. But the cart should already have
     // items from the normal checkout flow. We just call the procedure.
-    await pool.query(
+    await client.query(
       "CALL mars.place_order($1, $2, $3, $4, $5)",
       [
         customerId,
@@ -361,10 +380,15 @@ exports.placeOrder = async (req, res) => {
       ]
     );
 
+    await client.query("COMMIT");
+
     res.status(201).json({ message: "Order placed successfully" });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Error placing order:", err);
     res.status(500).json({ error: err.message || "Internal Server Error" });
+  } finally {
+    client.release();
   }
 };
 

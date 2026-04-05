@@ -44,6 +44,8 @@ exports.markAllAsRead = async (req, res) => {
   try {
     const userId = req.user.userId;
 
+    await client.query("BEGIN");
+
     await client.query(
       `UPDATE mars.Notifications
        SET Is_Read = TRUE
@@ -51,8 +53,11 @@ exports.markAllAsRead = async (req, res) => {
       [userId]
     );
 
+    await client.query("COMMIT");
+
     res.json({ message: "All notifications marked as read" });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error marking all notifications as read:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   } finally {
@@ -66,6 +71,8 @@ exports.markAsRead = async (req, res) => {
     const userId = req.user.userId;
     const notificationId = req.params.notificationId;
 
+    await client.query("BEGIN");
+
     const result = await client.query(
       `UPDATE mars.Notifications
        SET Is_Read = TRUE
@@ -75,11 +82,15 @@ exports.markAsRead = async (req, res) => {
     );
 
     if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Notification not found or access denied" });
     }
 
+    await client.query("COMMIT");
+
     res.json({ message: "Notification marked as read", notification: result.rows[0] });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error("Error marking notification as read:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   } finally {
