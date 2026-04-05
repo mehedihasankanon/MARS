@@ -14,6 +14,12 @@ router.get(
   authorizeRoles("admin"),
   userController.getPendingSellers,
 );
+router.delete(
+  "/:userId/remove-admin",
+  authenticateToken,
+  authorizeRoles("admin"),
+  userController.removeAdmin,
+);
 router.post(
   "/seller-requests/:sellerId/approve",
   authenticateToken,

@@ -6,7 +6,25 @@ exports.getWishlist = async (req, res) => {
     const userId = req.user.userId;
 
     const result = await client.query(
-      `SELECT p.Product_ID, p.Name, p.Description, p.Unit_Price, p.Stock_Quantity, p.Condition_State
+      `SELECT p.Product_ID,
+              p.Name,
+              p.Description,
+              p.Unit_Price,
+              p.Stock_Quantity,
+              p.Condition_State,
+              COALESCE(
+                (
+                  SELECT json_agg(
+                    json_build_object(
+                      'image_id', pi.Image_ID,
+                      'image_url', pi.Image_URL
+                    )
+                  )
+                  FROM Product_Images pi
+                  WHERE pi.Product_ID = p.Product_ID
+                ),
+                '[]'
+              ) AS images
        FROM Wishlists w
        JOIN Products p ON w.Product_ID = p.Product_ID
        WHERE w.Customer_ID = $1`,

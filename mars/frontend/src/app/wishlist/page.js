@@ -114,7 +114,15 @@ export default function WishlistPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>
                   </button>
-                  <span className="text-5xl opacity-30">📦</span>
+                  {product.images && product.images.length > 0 && product.images[0]?.image_url ? (
+                    <img
+                      src={product.images[0].image_url}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-5xl opacity-30">📦</span>
+                  )}
                 </div>
 
                 <div className="p-5 flex-1 flex flex-col">

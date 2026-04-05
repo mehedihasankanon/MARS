@@ -66,6 +66,8 @@ export default function DashboardPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editFormError, setEditFormError] = useState('');
   const [editFormSuccess, setEditFormSuccess] = useState('');
+  const [deletingProductId, setDeletingProductId] = useState(null);
+  const [productActionError, setProductActionError] = useState('');
 
   const [productStockFilter, setProductStockFilter] = useState('all');
   const [productSort, setProductSort] = useState('newest');
@@ -272,6 +274,30 @@ export default function DashboardPage() {
       setEditFormError(err.response?.data?.error || 'Failed to update product');
     } finally {
       setEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async (product) => {
+    setProductActionError('');
+    if (!window.confirm(`Delete "${product.name}"? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeletingProductId(product.product_id);
+    try {
+      await api.delete(`/products/${product.product_id}`);
+      setAllProducts((prev) => prev.filter((p) => p.product_id !== product.product_id));
+      setMyProducts((prev) => prev.filter((p) => p.product_id !== product.product_id));
+      if (imageModalProduct?.product_id === product.product_id) {
+        closeImageModal();
+      }
+      if (editModalProduct?.product_id === product.product_id) {
+        closeEditModal();
+      }
+    } catch (err) {
+      setProductActionError(err.response?.data?.error || 'Failed to delete product.');
+    } finally {
+      setDeletingProductId(null);
     }
   };
 
@@ -790,6 +816,11 @@ export default function DashboardPage() {
 
         {activeTab === 'products' && (
           <>
+            {productActionError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                {productActionError}
+              </div>
+            )}
             {loadingProducts ? (
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -946,6 +977,17 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-3 flex-wrap justify-end">
                         <button type="button" onClick={(e) => { e.preventDefault(); openOfferModal(product); }} className="text-amber-400 hover:text-amber-300 font-medium transition-colors">Offers</button>
                         <button onClick={(e) => { e.preventDefault(); openEditModal(product); }} className="text-[#E85D26] hover:text-[#D14F1E] font-medium transition-colors">Edit</button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteProduct(product);
+                          }}
+                          disabled={deletingProductId === product.product_id}
+                          className="text-red-400 hover:text-red-300 font-medium transition-colors disabled:opacity-50"
+                        >
+                          {deletingProductId === product.product_id ? 'Deleting…' : 'Delete'}
+                        </button>
                         <span>
                           {product.adding_date
                             ? new Date(product.adding_date).toLocaleDateString()

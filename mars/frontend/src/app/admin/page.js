@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [couponActionId, setCouponActionId] = useState(null);
 
   const [promotingUserId, setPromotingUserId] = useState(null);
+  const [removingAdminId, setRemovingAdminId] = useState(null);
   const [promoteError, setPromoteError] = useState('');
 
   useEffect(() => {
@@ -100,6 +101,24 @@ export default function AdminPage() {
       );
     } finally {
       setPromotingUserId(null);
+    }
+  };
+
+  const removeAdminRole = async (targetUserId) => {
+    setPromoteError('');
+    if (!window.confirm('Remove admin role from this user?')) return;
+
+    setRemovingAdminId(targetUserId);
+    try {
+      await api.delete(`/users/${targetUserId}/remove-admin`);
+      const usersRes = await api.get('/users');
+      setUsers(usersRes.data);
+    } catch (err) {
+      setPromoteError(
+        err.response?.data?.error || 'Failed to remove admin role.',
+      );
+    } finally {
+      setRemovingAdminId(null);
     }
   };
 
@@ -599,8 +618,17 @@ export default function AdminPage() {
                       >
                         {promotingUserId === u.user_id ? 'Promoting…' : 'Make admin'}
                       </button>
+                    ) : u.user_id === user?.user_id ? (
+                      <span className="text-xs text-gray-600">You</span>
                     ) : (
-                      <span className="text-xs text-gray-600">—</span>
+                      <button
+                        type="button"
+                        onClick={() => removeAdminRole(u.user_id)}
+                        disabled={removingAdminId === u.user_id}
+                        className="px-3 py-1.5 text-xs font-medium text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                      >
+                        {removingAdminId === u.user_id ? 'Removing…' : 'Remove admin'}
+                      </button>
                     )}
                   </div>
                 </div>

@@ -179,6 +179,91 @@ exports.promoteToAdmin = async (req, res) => {
   }
 };
 
+exports.removeAdmin = async (req, res) => {
+  const { userId } = req.params;
+  const actingAdminId = req.user.userId;
+
+  if (String(userId) === String(actingAdminId)) {
+    return res.status(400).json({ error: "Cannot remove your own admin role" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const adminAgeCheck = await client.query(
+      `SELECT
+         (SELECT u.Created_At
+          FROM Admins a
+          JOIN Users u ON u.User_ID = a.Admin_ID
+          WHERE a.Admin_ID = $1) AS acting_created_at,
+         (SELECT u.Created_At
+          FROM Admins a
+          JOIN Users u ON u.User_ID = a.Admin_ID
+          WHERE a.Admin_ID = $2) AS target_created_at`,
+      [actingAdminId, userId],
+    );
+
+    const actingCreatedAt = adminAgeCheck.rows[0]?.acting_created_at;
+    const targetCreatedAt = adminAgeCheck.rows[0]?.target_created_at;
+
+    if (!actingCreatedAt) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "Only admins can remove admins" });
+    }
+
+    if (!targetCreatedAt) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Target user is not an admin" });
+    }
+
+    if (new Date(actingCreatedAt) > new Date(targetCreatedAt)) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ error: "Only an older admin can remove a newer admin" });
+    }
+
+    // Reassign audit/ownership references to the acting admin before removing target admin role.
+    await client.query(
+      `UPDATE Sellers
+       SET Approved_By_Admin_ID = $1
+       WHERE Approved_By_Admin_ID = $2`,
+      [actingAdminId, userId],
+    );
+
+    await client.query(
+      `UPDATE Categories
+       SET Updated_By_Admin_ID = $1
+       WHERE Updated_By_Admin_ID = $2`,
+      [actingAdminId, userId],
+    );
+
+    await client.query(
+      `UPDATE Coupons
+       SET Created_By_Admin_ID = $1
+       WHERE Created_By_Admin_ID = $2`,
+      [actingAdminId, userId],
+    );
+
+    await client.query(
+      `UPDATE Orders
+       SET Monitored_By_Admin_ID = $1
+       WHERE Monitored_By_Admin_ID = $2`,
+      [actingAdminId, userId],
+    );
+
+    await client.query("DELETE FROM Admins WHERE Admin_ID = $1", [userId]);
+
+    await client.query("COMMIT");
+    res.json({ message: "Admin role removed successfully" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Error removing admin role:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
+  }
+};
+
 exports.approveSeller = async (req, res) => {
   const { sellerId } = req.params;
   const adminId = req.user.userId;

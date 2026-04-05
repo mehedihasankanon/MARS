@@ -169,8 +169,16 @@ export default function CartPage() {
                   className="bg-[#111111] rounded-xl border border-[#2A2A2A] p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
                 >
 
-                  <div className="w-20 h-20 bg-[#1A1A1A] rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span className="text-2xl opacity-30"></span>
+                  <div className="w-20 h-20 bg-[#1A1A1A] rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    {item.product?.images && item.product.images.length > 0 && item.product.images[0]?.image_url ? (
+                      <img
+                        src={item.product.images[0].image_url}
+                        alt={item.product?.name || 'Product image'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-2xl opacity-30">📦</span>
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">

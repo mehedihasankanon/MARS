@@ -351,7 +351,7 @@ exports.deleteProduct = async (req, res) => {
         await client.query("ROLLBACK");
         return res.status(404).json({ error: "Product not found" });
       }
-      if (ownerCheck.rows[0].seller_id !== userId) {
+      if (String(ownerCheck.rows[0].seller_id) !== String(userId)) {
         await client.query("ROLLBACK");
         return res.status(403).json({ error: "You can only delete your own products" });
       }
