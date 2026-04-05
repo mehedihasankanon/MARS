@@ -13,7 +13,9 @@ export default function ProductsPage() {
 
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState(
+    searchParams.get("category") || "",
+  );
   const [selectedSeller, setSelectedSeller] = useState(
     searchParams.get("seller") || "",
   );
@@ -27,6 +29,7 @@ export default function ProductsPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    setSelectedCategory(searchParams.get("category") || "");
     setSelectedSeller(searchParams.get("seller") || "");
     setSelectedSellerName(searchParams.get("sellerName") || "");
   }, [searchParams]);

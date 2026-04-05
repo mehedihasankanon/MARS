@@ -23,6 +23,7 @@ exports.createCategory = async (req, res) => {
     await client.query("BEGIN");
 
     const { name, description, image, parentCategoryId } = req.body;
+    const uploadedImageUrl = req.file?.path || null;
     const adminId = req.user.userId;
 
     if (!name || name.trim() === "") {
@@ -37,7 +38,7 @@ exports.createCategory = async (req, res) => {
       [
         name.trim(),
         description || null,
-        image || null,
+        uploadedImageUrl || image || null,
         parentCategoryId || null,
         adminId,
       ],
@@ -68,7 +69,8 @@ exports.updateCategory = async (req, res) => {
     await client.query("BEGIN");
 
     const categoryName = req.params.name;
-    const { description, image, parentCategoryId } = req.body;
+    const { name, description, image, parentCategoryId } = req.body;
+    const uploadedImageUrl = req.file?.path || null;
     const adminId = req.user.userId;
 
     if (!categoryName || categoryName.trim() === "") {
@@ -81,13 +83,18 @@ exports.updateCategory = async (req, res) => {
     const update = await client.query(
       `
       UPDATE Categories
-      SET Description = $1, Image = $2, Parent_Category_ID = $3, Updated_By_Admin_ID = $4
-      WHERE Name = $5
+      SET Name = COALESCE($1, Name),
+          Description = $2,
+          Image = $3,
+          Parent_Category_ID = $4,
+          Updated_By_Admin_ID = $5
+      WHERE Name = $6
       RETURNING *
       `,
       [
-        description || "No Description",
-        image || null,
+        name?.trim() || null,
+        description || null,
+        uploadedImageUrl || image || null,
         parentCategoryId || null,
         adminId,
         categoryName,
@@ -102,6 +109,10 @@ exports.updateCategory = async (req, res) => {
     await client.query("COMMIT");
     res.json(update.rows[0]);
   } catch (error) {
+    await client.query("ROLLBACK");
+    if (error.code === "23505") {
+      return res.status(409).json({ error: "A category with that name already exists" });
+    }
     console.error("Error updating category:", error);
     res.status(500).json({ error: "Internal Server Error" });
   } finally {
@@ -127,10 +138,19 @@ exports.deleteCategory = async (req, res) => {
       [categoryName],
     );
 
+    if (deleteQuery.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Category not found" });
+    }
+
     await client.query("COMMIT");
 
     res.json({ message: "Category deleted successfully" });
   } catch (error) {
+    await client.query("ROLLBACK");
+    if (error.code === "23503") {
+      return res.status(409).json({ error: "Cannot delete category with existing products" });
+    }
     console.error("Error deleting category:", error);
     res.status(500).json({ error: "Internal Server Error" });
   } finally {

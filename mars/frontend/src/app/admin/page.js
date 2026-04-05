@@ -428,8 +428,7 @@ export default function AdminPage() {
           )}
         </div>
 
-        {(pendingSellers.length > 0 || scamReports.length > 0) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <div className="bg-[#111111] rounded-xl border border-[#2A2A2A] overflow-hidden">
               <div className="px-6 py-4 bg-[#0D0D0D] border-b border-[#2A2A2A] flex items-center justify-between">
                 <h2 className="text-white font-bold">Seller Approval Requests</h2>
@@ -507,7 +506,6 @@ export default function AdminPage() {
               )}
             </div>
           </div>
-        )}
 
         {promoteError && (
           <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
