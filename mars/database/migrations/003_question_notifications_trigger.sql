@@ -1,5 +1,4 @@
 -- Notification on Question Trigger
--- Execute this script in your Neon postgres console
 
 CREATE OR REPLACE FUNCTION mars.notify_seller_on_question()
 RETURNS TRIGGER

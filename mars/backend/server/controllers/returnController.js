@@ -91,7 +91,6 @@ exports.getSellerReturns = async (req, res) => {
   try {
     const sellerId = req.user.userId;
 
-    // Fetch return requests mapped back to products owned by this specific seller
     const result = await pool.query(
       `
       SELECT r.Return_ID AS return_id, r.Order_ID AS order_id, r.Customer_ID AS customer_id,

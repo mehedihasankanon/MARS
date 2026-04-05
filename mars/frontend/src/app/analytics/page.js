@@ -76,7 +76,6 @@ export default function AnalyticsPage() {
           </div>
         ) : (
           <>
-            {/* Platform Overview Cards */}
             {platformStats && (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
                 {[
@@ -97,7 +96,6 @@ export default function AnalyticsPage() {
               </div>
             )}
 
-            {/* Top Sellers */}
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-white mb-4">Top <span className="text-[#E85D26]">Sellers</span></h2>
               {topSellers.length === 0 ? (
@@ -135,7 +133,6 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            {/* Best Selling Products */}
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-white mb-4">Best <span className="text-[#E85D26]">Selling Products</span></h2>
               {bestProducts.length === 0 ? (
@@ -178,7 +175,6 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            {/* Category Analytics */}
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-white mb-4">Category <span className="text-[#E85D26]">Breakdown</span></h2>
               {categoryStats.length === 0 ? (

@@ -13,8 +13,6 @@ router.delete("/:id", authenticateToken, authorizeRoles("admin"), couponControll
 
 router.post("/validate", authenticateToken, couponController.validateCoupon);
 
-// router.put("/:id", authenticateToken, authorizeRoles("admin"), couponController.updateCoupon);
-
 router.put("/disable/:id", authenticateToken, authorizeRoles("admin"), couponController.disableCoupon);
 
 

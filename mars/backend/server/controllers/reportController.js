@@ -22,7 +22,6 @@ exports.reportScam = async (req, res) => {
       return res.status(403).json({ error: "Only customers can report scams" });
     }
 
-    // If orderId provided, it must belong to the reporter
     if (orderId) {
       const orderCheck = await client.query(
         "SELECT 1 FROM Orders WHERE Order_ID = $1 AND Customer_ID = $2",
@@ -34,7 +33,6 @@ exports.reportScam = async (req, res) => {
       }
     }
 
-    // If productId provided, infer seller if not provided
     let finalAccusedSellerId = accusedSellerId || null;
     if (productId && !finalAccusedSellerId) {
       const pr = await client.query(

@@ -1,5 +1,4 @@
 -- Returns Management Procedures
--- Execute this script in your Neon postgres console!
 
 -- 1. Procedure to Request a Return
 CREATE OR REPLACE PROCEDURE mars.request_return(

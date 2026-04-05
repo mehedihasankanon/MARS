@@ -1,9 +1,4 @@
 -- ============================================================
--- MARS Database Functions & Procedures Migration
--- Run this in your Neon DB SQL Editor
--- ============================================================
-
--- ============================================================
 -- 1. PROCEDURE: place_order
 --    Replaces the massive 8-step placeOrder JS logic
 --    Atomically: validates stock, creates order, order_items,

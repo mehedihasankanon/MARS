@@ -1,23 +1,11 @@
 const pool = require("../../../database/db.js");
 
-// router.post("/", authenticateToken, authorizeRoles("admin"), couponController.createCoupon);
-
 exports.createCoupon = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const adminId = req.user.userId;
-    {
-      /* 
-        REMINDER: send this from the frontend
-
-        
-        expiry_date: new Date("2025-12-31").toISOString() 
-
-
-        */
-    }
     const { discount_percent, expiry_date, coupon_code } = req.body;
 
     if (
@@ -109,10 +97,6 @@ exports.getAllCoupons = async (req, res) => {
   }
 };
 
-// The Orders table has a FK to Coupons(Coupon_ID) WITHOUT
-// ON DELETE CASCADE, which means Postgres will REJECT the delete if
-// any order references this coupon. We don't
-// want to lose the audit trail of which coupon was used on past orders.
 exports.deleteCoupon = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -194,14 +178,11 @@ exports.validateCoupon = async (req, res) => {
   }
 };
 
-// router.put("/disable/:id", authenticateToken, authorizeRoles("admin"), couponController.disableCoupon);
-
 exports.disableCoupon = async (req, res) => {
   const { id } = req.params;
 
   try {
     const result = await pool.query(
-      // set 1 day into the past
       "UPDATE Coupons SET Expiry_Date = NOW() - INTERVAL '1 day' WHERE Coupon_ID = $1 RETURNING *",
       [id],
     );

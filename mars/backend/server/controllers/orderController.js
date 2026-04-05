@@ -99,7 +99,6 @@ exports.updateOrderStatus = async (req, res) => {
 
   try {
     if (status === "Cancelled") {
-      // Use the DB procedure for atomic cancellation (stock restore + payment void + shipment log)
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -114,7 +113,6 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
-    // For non-cancellation updates, keep lightweight SQL
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -132,7 +130,6 @@ exports.updateOrderStatus = async (req, res) => {
         return res.status(403).json({ error: "Not authorized to update this order" });
       }
 
-      // Legacy endpoint: apply status to THIS seller's items only.
       const sellerItems = await client.query(
         `SELECT oi.Product_ID
          FROM Order_Items oi
@@ -318,7 +315,6 @@ exports.confirmDelivery = async (req, res) => {
       );
     }
 
-    // Mark matching notification as read (best-effort)
     await client.query(
       `UPDATE mars.Notifications
        SET Is_Read = TRUE
@@ -366,9 +362,6 @@ exports.placeOrder = async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    // If Items are passed (from frontend), we need to add them to cart first
-    // since the procedure works from the cart. But the cart should already have
-    // items from the normal checkout flow. We just call the procedure.
     await client.query(
       "CALL mars.place_order($1, $2, $3, $4, $5)",
       [

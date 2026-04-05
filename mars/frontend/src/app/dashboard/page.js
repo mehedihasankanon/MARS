@@ -753,7 +753,6 @@ export default function DashboardPage() {
               <div className="text-gray-400 bg-[#111111] p-6 rounded-xl border border-[#2A2A2A] text-center">No data available</div>
             )}
 
-            {/* Product Contribution to Sales */}
             <div className="mt-8 pt-8 border-t border-[#2A2A2A]">
               <h3 className="text-2xl font-bold text-white mb-4">Product <span className="text-[#E85D26]">Contribution</span></h3>
               {deliveredContributionProducts.length === 0 ? (
@@ -1653,7 +1652,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Edit Product Modal */}
         {editModalProduct && (
           <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={closeEditModal}>
             <div

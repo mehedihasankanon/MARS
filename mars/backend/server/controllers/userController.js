@@ -222,7 +222,6 @@ exports.removeAdmin = async (req, res) => {
       return res.status(403).json({ error: "Only an older admin can remove a newer admin" });
     }
 
-    // Reassign audit/ownership references to the acting admin before removing target admin role.
     await client.query(
       `UPDATE Sellers
        SET Approved_By_Admin_ID = $1

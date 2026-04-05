@@ -50,7 +50,6 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", newToken);
     setToken(newToken);
     setUser({ ...userData, role: role || "customer", seller_pending_approval: !!seller_pending_approval });
-    // Stay on the register page so we can show the seller approval message.
     if (!seller_pending_approval) {
       router.push("/");
     }

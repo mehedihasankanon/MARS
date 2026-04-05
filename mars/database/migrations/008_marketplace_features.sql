@@ -242,7 +242,6 @@ CREATE TABLE IF NOT EXISTS mars.Delivery_Issues (
 ALTER TABLE mars.Notifications
 ADD COLUMN IF NOT EXISTS Product_ID UUID REFERENCES mars.Products(Product_ID) ON DELETE SET NULL;
 
--- Permissions (best-effort; adjust role/user as needed)
 DO $$
 BEGIN
   BEGIN
@@ -250,7 +249,6 @@ BEGIN
     GRANT SELECT, INSERT, UPDATE, DELETE ON mars.Scam_Reports TO kanon;
     GRANT SELECT, INSERT, UPDATE, DELETE ON mars.Delivery_Issues TO kanon;
   EXCEPTION WHEN undefined_object THEN
-    -- ignore if role doesn't exist in this environment
     NULL;
   END;
 END;

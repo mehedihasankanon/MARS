@@ -41,7 +41,6 @@ export default function OrdersPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setReturnSuccess('Return request submitted successfully. Waiting for seller approval.');
-      // Update local state to show 'Return Pending'
       setOrders(orders.map(o => o.order_id === returnOrder ? { ...o, order_status: 'Return Pending' } : o));
       setTimeout(() => {
         setReturnOrder(null);
@@ -56,7 +55,7 @@ export default function OrdersPage() {
     }
   };
 
-  const [confirmItem, setConfirmItem] = useState(null); // { orderId, productId }
+  const [confirmItem, setConfirmItem] = useState(null);
   const [confirmReceivedOk, setConfirmReceivedOk] = useState(true);
   const [confirmFeedback, setConfirmFeedback] = useState('');
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -104,7 +103,7 @@ export default function OrdersPage() {
     }
   };
 
-  const [scamModal, setScamModal] = useState(null); // { orderId, productId }
+  const [scamModal, setScamModal] = useState(null);
   const [scamDescription, setScamDescription] = useState('');
   const [scamSubmitting, setScamSubmitting] = useState(false);
   const [scamError, setScamError] = useState('');
@@ -423,7 +422,6 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Tracking Modal */}
       {trackingOrder && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setTrackingOrder(null)}>
           <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -481,7 +479,6 @@ export default function OrdersPage() {
           </div>
         </div>
       )}
-      {/* Return Request Modal */}
       {returnOrder && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !returnLoading && setReturnOrder(null)}>
           <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6" onClick={e => e.stopPropagation()}>
@@ -546,7 +543,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Delivery Confirmation Modal */}
       {confirmItem && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !confirmLoading && !confirmSuccess && setConfirmItem(null)}>
           <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -620,7 +616,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Scam Report Modal */}
       {scamModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => !scamSubmitting && setScamModal(null)}>
           <div className="bg-[#111111] border border-[#2A2A2A] rounded-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>

@@ -1,15 +1,5 @@
 const pool = require("../../../database/db.js");
 
-// ─── GET /api/varieties/product/:productId ──────────────────────────
-// Public. Returns all variation options for a product (e.g. "Red",
-// "Blue", "Large", "Small").
-//
-// Schema:
-//   Product_Varieties(Variety_ID uuid PK, Product_ID FK→Products,
-//                     Variety_Name varchar(50))
-//
-// The frontend calls this on the product detail page so the customer
-// can pick a variant before adding to cart.
 exports.getVarietiesByProduct = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -31,13 +21,6 @@ exports.getVarietiesByProduct = async (req, res) => {
   }
 };
 
-// ─── POST /api/varieties/product/:productId ─────────────────────────
-// Seller or admin. Adds a new variety (e.g. color, size) to their own
-// product.
-//
-// Why verify ownership? Because the Seller_ID FK on Products tells us
-// who owns the listing — seller A shouldn't add variants to seller B's
-// product. Admins bypass this check.
 exports.createVariety = async (req, res) => {
   const client = await pool.connect();
   try {
@@ -53,7 +36,6 @@ exports.createVariety = async (req, res) => {
       return res.status(400).json({ error: "variety name is required" });
     }
 
-    // find who owns it
     const productResult = await client.query(
       "SELECT Seller_ID FROM Products WHERE Product_ID = $1",
       [productId],
@@ -64,7 +46,6 @@ exports.createVariety = async (req, res) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // if seller is not the same, rollback
     if (role !== "admin" && productResult.rows[0].seller_id !== userId) {
       await client.query("ROLLBACK");
       return res
@@ -103,11 +84,6 @@ exports.createVariety = async (req, res) => {
   }
 };
 
-// ─── DELETE /api/varieties/:id ──────────────────────────────────────
-// Seller or admin. Removes a variety. The ON DELETE CASCADE from the
-// Products FK means if the parent product is deleted, all its varieties
-// are cleaned up automatically. But sellers may also want to manually
-// remove one specific variant.
 exports.deleteVariety = async (req, res) => {
   const client = await pool.connect();
   try {

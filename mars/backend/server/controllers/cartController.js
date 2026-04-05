@@ -37,7 +37,6 @@ exports.addItemToCart = async (req, res) => {
     res.status(201).json({ message: "Item added to cart" });
   } catch (err) {
     console.error("Error adding item to cart:", err);
-    // The DB function raises descriptive exceptions
     res.status(400).json({ message: err.message || "Internal server error" });
   }
 };
