@@ -33,7 +33,7 @@ Supervised by: [**Junaed Younus Khan**](https://www.junaedyounuskhan.com/) (Lect
 - **Runtime:** Node.js
 - **Framework:** Express.js (v5.2.1)
 - **Media Management:** Cloudinary via Multer
-- **Validation:** Zod, express-validator
+- **Validation:** <!-- Zod, -->express-validator
 
 ### Database
 - **Primary Database:** PostgreSQL hosten on [NeonDB](https://neon.tech/)
