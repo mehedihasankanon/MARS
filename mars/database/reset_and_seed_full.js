@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs").promises;
 require("dotenv").config({ path: path.resolve(__dirname, "../backend/.env") });
 const bcrypt = require("bcryptjs");
 const pool = require("./db.js");
@@ -152,10 +153,79 @@ const catalog = [
   },
 ];
 
+async function setupDatabase(client) {
+  // Set search path so unqualified table names resolve to mars schema
+  await client.query("SET search_path TO mars, public");
+  
+  // Create schema if it doesn't exist
+  await client.query("CREATE SCHEMA IF NOT EXISTS mars");
+  
+  // Create pgcrypto extension if needed
+  await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+}
+
+async function loadBaseSchema(client) {
+  const schemaPath = path.resolve(__dirname, "schema", "MARS_Schema_Creation.sql");
+  const schemaSQL = await fs.readFile(schemaPath, "utf8");
+  
+  // Split by semicolons and execute each statement
+  const statements = schemaSQL
+    .split(";")
+    .map((stmt) => stmt.trim())
+    .filter((stmt) => stmt.length > 0);
+
+  for (const statement of statements) {
+    try {
+      await client.query(statement);
+    } catch (err) {
+      // Ignore "already exists" errors
+      if (!err.message.includes("already exists")) {
+        throw err;
+      }
+    }
+  }
+  console.log("✓ Base schema loaded");
+}
+
+async function runMigrations(client) {
+  const migrationsDir = path.resolve(__dirname, "migrations");
+  const files = await fs.readdir(migrationsDir);
+  const sqlFiles = files.filter((f) => f.endsWith(".sql")).sort();
+
+  for (const file of sqlFiles) {
+    const filePath = path.resolve(migrationsDir, file);
+    const migration = await fs.readFile(filePath, "utf8");
+    
+    // Remove GRANT statements to avoid permission errors
+    const sanitized = migration.replace(/^\s*GRANT\s+.*?;$/gim, "").trim();
+    
+    if (sanitized.length === 0) continue;
+
+    try {
+      // Split by semicolons and execute non-empty statements
+      const statements = sanitized
+        .split(";")
+        .map((stmt) => stmt.trim())
+        .filter((stmt) => stmt.length > 0);
+
+      for (const statement of statements) {
+        await client.query(statement);
+      }
+    } catch (err) {
+      // Ignore "already exists" errors - some migrations may be idempotent
+      if (!err.message.includes("already exists")) {
+        console.warn(`⚠ Warning in migration ${file}:`, err.message);
+      }
+    }
+  }
+  console.log("✓ All migrations applied");
+}
+
 async function createUser(client, user, password) {
   const result = await client.query(
     `INSERT INTO Users (Username, Email, Password, First_Name, Last_Name, Phone_Number)
      VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (Username) DO UPDATE SET Email = EXCLUDED.Email, Password = EXCLUDED.Password
      RETURNING User_ID`,
     [user.username, user.email, password, user.first, user.last, user.phone]
   );
@@ -163,33 +233,41 @@ async function createUser(client, user, password) {
 }
 
 async function cleanDatabase(client) {
-  await client.query(`
-    TRUNCATE TABLE
-      Return_Items,
-      Returns,
-      Shipment_Status_History,
-      Shipments,
-      Payments,
-      Order_Items,
-      Orders,
-      Coupons,
-      Reviews,
-      Questions,
-      Wishlists,
-      Cart_Items,
-      Carts,
-      Product_Offers,
-      Product_Varieties,
-      Product_Images,
-      Products,
-      Categories,
-      Addresses,
-      Customers,
-      Sellers,
-      Admins,
-      Users
-    RESTART IDENTITY CASCADE;
-  `);
+  try {
+    await client.query(`
+      TRUNCATE TABLE
+        Return_Items,
+        Returns,
+        Shipment_Status_History,
+        Shipments,
+        Payments,
+        Order_Items,
+        Orders,
+        Coupons,
+        Reviews,
+        Questions,
+        Wishlists,
+        Cart_Items,
+        Carts,
+        Product_Offers,
+        Product_Varieties,
+        Product_Images,
+        Products,
+        Categories,
+        Addresses,
+        Customers,
+        Sellers,
+        Admins,
+        Users
+      RESTART IDENTITY CASCADE;
+    `);
+    console.log("✓ Database cleaned");
+  } catch (err) {
+    if (!err.message.includes("does not exist")) {
+      throw err;
+    }
+    console.log("✓ Tables don't exist yet, proceeding with creation");
+  }
 }
 
 async function seedUsersAndRoles(client) {
@@ -202,7 +280,17 @@ async function seedUsersAndRoles(client) {
   const adminIds = [];
   for (const admin of adminSeed) {
     const userId = await createUser(client, admin, passwordMap.admin);
-    await client.query("INSERT INTO Admins (Admin_ID) VALUES ($1)", [userId]);
+    await client.query(
+      "INSERT INTO Admins (Admin_ID) VALUES ($1) ON CONFLICT (Admin_ID) DO NOTHING",
+      [userId]
+    );
+    // Admins are also customers so they can use wishlist and cart
+    await client.query(
+      `INSERT INTO Customers (Customer_ID, Loyalty_Points)
+       VALUES ($1, $2)
+       ON CONFLICT (Customer_ID) DO NOTHING`,
+      [userId, Math.floor(Math.random() * 250)]
+    );
     adminIds.push(userId);
   }
 
@@ -210,22 +298,40 @@ async function seedUsersAndRoles(client) {
   for (let index = 0; index < sellerSeed.length; index++) {
     const seller = sellerSeed[index];
     const userId = await createUser(client, seller, passwordMap.seller);
-    await client.query("INSERT INTO Sellers (Seller_ID, Shop_Name, Rating, Approved_By_Admin_ID, Authorization_Date) VALUES ($1, $2, $3, $4, CURRENT_DATE)", [
-      userId,
-      seller.shop,
-      seller.rating,
-      adminIds[index % adminIds.length],
-    ]);
+    await client.query(
+      `INSERT INTO Sellers (Seller_ID, Shop_Name, Rating, Approved_By_Admin_ID, Authorization_Date)
+       VALUES ($1, $2, $3, $4, CURRENT_DATE)
+       ON CONFLICT (Seller_ID) DO UPDATE SET
+         Shop_Name = EXCLUDED.Shop_Name,
+         Rating = EXCLUDED.Rating,
+         Approved_By_Admin_ID = EXCLUDED.Approved_By_Admin_ID`,
+      [userId, seller.shop, seller.rating, adminIds[index % adminIds.length]]
+    );
+    // Sellers are also customers so they can use wishlist and cart
+    await client.query(
+      `INSERT INTO Customers (Customer_ID, Loyalty_Points)
+       VALUES ($1, $2)
+       ON CONFLICT (Customer_ID) DO NOTHING`,
+      [userId, Math.floor(Math.random() * 250)]
+    );
     sellerIds.push(userId);
   }
 
   const customerIds = [];
   for (const customer of customerSeed) {
     const userId = await createUser(client, customer, passwordMap.customer);
-    await client.query("INSERT INTO Customers (Customer_ID, Loyalty_Points) VALUES ($1, $2)", [userId, Math.floor(Math.random() * 250)]);
+    await client.query(
+      `INSERT INTO Customers (Customer_ID, Loyalty_Points)
+       VALUES ($1, $2)
+       ON CONFLICT (Customer_ID) DO UPDATE SET Loyalty_Points = EXCLUDED.Loyalty_Points`,
+      [userId, Math.floor(Math.random() * 250)]
+    );
     customerIds.push(userId);
   }
 
+  console.log(
+    `✓ Seeded ${adminIds.length} admins, ${sellerIds.length} sellers, ${customerIds.length} customers (all with customer privileges)`
+  );
   return { adminIds, sellerIds, customerIds };
 }
 
@@ -235,11 +341,16 @@ async function seedCategories(client, adminIds) {
     const result = await client.query(
       `INSERT INTO Categories (Name, Description, Image, Updated_By_Admin_ID)
        VALUES ($1, $2, $3, $4)
+       ON CONFLICT (Name) DO UPDATE SET
+         Description = EXCLUDED.Description,
+         Image = EXCLUDED.Image,
+         Updated_By_Admin_ID = EXCLUDED.Updated_By_Admin_ID
        RETURNING Category_ID, Name`,
       [category.name, category.desc, category.image, adminIds[0]]
     );
     categoryIds[result.rows[0].name] = result.rows[0].category_id;
   }
+  console.log(`✓ Seeded ${Object.keys(categoryIds).length} categories`);
   return categoryIds;
 }
 
@@ -261,18 +372,27 @@ async function seedAddressesAndCarts(client, customerIds) {
     const customerId = customerIds[index];
     const address = addresses[index % addresses.length];
 
+    // Delete existing address if any to avoid duplicates
+    await client.query(
+      "DELETE FROM Addresses WHERE User_ID = $1",
+      [customerId]
+    );
+
     await client.query(
       `INSERT INTO Addresses (User_ID, House, Street_Road, City, Zip_Code, Address_Type)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [customerId, address.house, address.street, address.city, address.zip, "Home"]
     );
 
+    // Ensure cart exists
     await client.query(
       `INSERT INTO Carts (Customer_ID, Total_Amount)
-       VALUES ($1, 0.00)`,
+       VALUES ($1, 0.00)
+       ON CONFLICT (Customer_ID) DO NOTHING`,
       [customerId]
     );
   }
+  console.log(`✓ Seeded addresses and carts for ${customerIds.length} customers`);
 }
 
 async function seedProducts(client, sellerIds, categoryIds) {
@@ -313,31 +433,61 @@ async function seedProducts(client, sellerIds, categoryIds) {
     }
   }
 
+  console.log(`✓ Seeded ${productCount} products with ${imageCount} images`);
   return { productCount, imageCount };
 }
 
 async function main() {
   const client = await pool.connect();
   try {
+    // Setup database (schema, extensions)
+    await setupDatabase(client);
+
+    // Load base schema
+    await loadBaseSchema(client);
+
+    // Run all migrations
+    await runMigrations(client);
+
+    // Begin transaction for seeding
     await client.query("BEGIN");
+
+    // Clean database if not skipping
     if (process.env.SKIP_CLEANUP !== "1") {
       await cleanDatabase(client);
     }
 
+    // Seed all data
     const { adminIds, sellerIds, customerIds } = await seedUsersAndRoles(client);
     const categoryIds = await seedCategories(client, adminIds);
     await seedAddressesAndCarts(client, customerIds);
     const { productCount, imageCount } = await seedProducts(client, sellerIds, categoryIds);
 
+    // Commit transaction
     await client.query("COMMIT");
-    console.log("Database reset complete.");
-    console.log(`Seeded ${adminIds.length} admins, ${sellerIds.length} sellers, ${customerIds.length} customers, ${Object.keys(categoryIds).length} categories, ${productCount} products, and ${imageCount} images.`);
-    console.log("Admin password: admin123");
-    console.log("Seller password: seller123");
-    console.log("Customer password: cust123");
+
+    console.log("\n========================================");
+    console.log("✓ Database setup and seeding complete!");
+    console.log("========================================");
+    console.log(`Admins:        ${adminIds.length}`);
+    console.log(`Sellers:       ${sellerIds.length}`);
+    console.log(`Customers:     ${customerIds.length}`);
+    console.log(`Categories:    ${Object.keys(categoryIds).length}`);
+    console.log(`Products:      ${productCount}`);
+    console.log(`Images:        ${imageCount}`);
+    console.log("\nDefault Passwords:");
+    console.log("  Admin:    admin123");
+    console.log("  Seller:   seller123");
+    console.log("  Customer: cust123");
+    console.log("========================================\n");
   } catch (error) {
-    await client.query("ROLLBACK");
-    console.error("Full database seed failed:", error);
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackErr) {
+      // Ignore rollback errors if transaction wasn't started
+    }
+    console.error("\n❌ Database setup failed:", error.message);
+    if (error.detail) console.error("Details:", error.detail);
     process.exitCode = 1;
   } finally {
     client.release();
