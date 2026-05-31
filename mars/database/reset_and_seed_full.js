@@ -202,15 +202,9 @@ async function runMigrations(client) {
     if (sanitized.length === 0) continue;
 
     try {
-      // Split by semicolons and execute non-empty statements
-      const statements = sanitized
-        .split(";")
-        .map((stmt) => stmt.trim())
-        .filter((stmt) => stmt.length > 0);
-
-      for (const statement of statements) {
-        await client.query(statement);
-      }
+      // Execute the entire migration as a single string
+      // to avoid breaking PL/pgSQL functions which contain internal semicolons
+      await client.query(sanitized);
     } catch (err) {
       // Ignore "already exists" errors - some migrations may be idempotent
       if (!err.message.includes("already exists")) {
@@ -372,17 +366,19 @@ async function seedAddressesAndCarts(client, customerIds) {
     const customerId = customerIds[index];
     const address = addresses[index % addresses.length];
 
-    // Delete existing address if any to avoid duplicates
-    await client.query(
-      "DELETE FROM Addresses WHERE User_ID = $1",
+    // Check if Address already exists
+    const existingAddress = await client.query(
+      "SELECT 1 FROM Addresses WHERE User_ID = $1 LIMIT 1",
       [customerId]
     );
 
-    await client.query(
-      `INSERT INTO Addresses (User_ID, House, Street_Road, City, Zip_Code, Address_Type)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [customerId, address.house, address.street, address.city, address.zip, "Home"]
-    );
+    if (existingAddress.rowCount === 0) {
+      await client.query(
+        `INSERT INTO Addresses (User_ID, House, Street_Road, City, Zip_Code, Address_Type)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [customerId, address.house, address.street, address.city, address.zip, "Home"]
+      );
+    }
 
     // Ensure cart exists
     await client.query(
